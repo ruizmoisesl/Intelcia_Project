@@ -1,0 +1,56 @@
+---
+import { addDaysIso, mondayOfIso } from "../lib/format";
+import Icon from "./Icon.astro";
+
+interface Props {
+  basePath: string;
+  weekStart: string; // lunes ISO
+  /** «Hoy» según el backend (zona del negocio); null desactiva el marcador. */
+  today?: string | null;
+}
+
+const { basePath, weekStart, today = null } = Astro.props;
+const previous = addDaysIso(weekStart, -7);
+const next = addDaysIso(weekStart, 7);
+const isCurrent = today !== null && weekStart === mondayOfIso(today);
+
+const linkClass = `
+  group inline-flex items-center gap-2 
+  px-4 py-2.5 
+  bg-white/5 border border-white/10 
+  rounded-xl 
+  text-sm font-medium text-gray-400 
+  hover:bg-white/10 hover:border-rose-500/20 hover:text-white 
+  transition-all duration-300
+  hover:-translate-y-0.5
+`;
+---
+
+<div class="flex items-center justify-between gap-4">
+  <a href={`${basePath}?week=${previous}`} class={linkClass}>
+    <Icon name="chevronLeft" class="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
+    <span class="hidden sm:inline">Semana anterior</span>
+  </a>
+
+  <div class="flex items-center gap-2.5">
+    {isCurrent ? (
+      <span class="flex items-center gap-2 px-4 py-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-sm font-medium text-rose-400">
+        <span class="inline-block w-1.5 h-1.5 bg-rose-400 rounded-full animate-pulse"></span>
+        Semana actual
+      </span>
+    ) : (
+      <a
+        href={basePath}
+        class="group inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-medium text-gray-400 hover:bg-white/10 hover:border-rose-500/20 hover:text-white transition-all duration-300 hover:-translate-y-0.5"
+      >
+        <span class="inline-block w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-rose-400 transition-colors duration-300"></span>
+        Semana actual
+      </a>
+    )}
+  </div>
+
+  <a href={`${basePath}?week=${next}`} class={linkClass}>
+    <span class="hidden sm:inline">Semana siguiente</span>
+    <Icon name="chevronRight" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+  </a>
+</div>

@@ -1,0 +1,112 @@
+---
+import type { ApiUser } from "../services/api";
+import Icon from "./Icon.astro";
+import NavMenu from "./NavMenu.astro";
+
+interface Props {
+  user: ApiUser;
+  currentPath: string;
+}
+
+const { user, currentPath } = Astro.props;
+
+const roleLabels: Record<ApiUser["role"], string> = {
+  ADMIN: "Administrador",
+  SUPERVISOR: "Supervisor",
+  EMPLOYEE: "Empleado",
+};
+
+const initials = user.name
+  .split(" ")
+  .filter(Boolean)
+  .map((part) => part[0]?.toUpperCase() ?? "")
+  .slice(0, 2)
+  .join("");
+---
+
+<aside class="hidden shrink-0 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:flex-col bg-[#0a0a0f] border-r border-white/5">
+  {/* Logo y branding */}
+  <div class="flex h-16 items-center gap-3 border-b border-white/5 px-5">
+    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 shadow-lg shadow-rose-500/25">
+      <Icon name="building" class="h-5 w-5 text-white" />
+    </div>
+    <div class="leading-tight">
+      <p class="text-sm font-bold text-white tracking-tight">Nexus Central</p>
+      <p class="text-[10px] text-gray-500 font-medium tracking-wide">v2.4 · Enterprise</p>
+    </div>
+    <div class="ml-auto">
+      <span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+    </div>
+  </div>
+
+  {/* Navegación */}
+  <div class="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin">
+    <NavMenu currentPath={currentPath} role={user.role} />
+  </div>
+
+  {/* Perfil de usuario */}
+  <div class="border-t border-white/5 p-4 bg-white/5 backdrop-blur-sm">
+    <div class="flex items-center gap-3">
+      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-rose-600 text-xs font-bold text-white shadow-lg shadow-rose-500/20">
+        {initials || "U"}
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium text-white">{user.name}</p>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[10px] text-gray-400">{roleLabels[user.role]}</span>
+          <span class="inline-block w-1 h-1 bg-gray-600 rounded-full"></span>
+          <span class="text-[9px] text-emerald-400/60 font-medium">● activo</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-0.5">
+        <a
+          href="/dashboard/perfil"
+          title="Mi perfil"
+          class="rounded-lg p-2 text-gray-400 transition-all duration-200 hover:text-white hover:bg-white/10"
+        >
+          <Icon name="user" class="h-4 w-4" />
+        </a>
+        <form method="POST" action="/api/logout" class="inline">
+          <button
+            type="submit"
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+            class="rounded-lg p-2 text-gray-400 transition-all duration-200 hover:text-rose-400 hover:bg-rose-500/10"
+          >
+            <Icon name="logout" class="h-4 w-4" />
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {/* Estado del sistema */}
+    <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+      <span class="text-[9px] text-gray-500 font-mono">US-EAST-4B</span>
+      <span class="text-[9px] text-gray-500 flex items-center gap-1.5">
+        <span class="inline-block w-1 h-1 bg-emerald-400 rounded-full"></span>
+        Sync Activo
+      </span>
+      <span class="text-[9px] text-gray-600">v2.4.1</span>
+    </div>
+  </div>
+</aside>
+
+<style>
+  /* Scrollbar personalizada para el sidebar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(232, 62, 140, 0.3);
+    border-radius: 10px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(232, 62, 140, 0.5);
+  }
+</style>

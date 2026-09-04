@@ -1,0 +1,232 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+import FlashMessage from "../../components/FlashMessage.astro";
+import { fetchAuditLogs, type AuditEntry } from "../../services/api";
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect("/login");
+if (user.role !== "ADMIN") return Astro.redirect("/dashboard");
+const token = Astro.locals.token ?? "";
+
+const PAGE_SIZE = 50;
+const pageParam = Number(Astro.url.searchParams.get("page") ?? "1");
+const page = Number.isInteger(pageParam) && pageParam >= 1 ? pageParam : 1;
+const eventParam = Astro.url.searchParams.get("event") ?? "";
+
+let items: AuditEntry[] = [];
+let total = 0;
+try {
+  const result = await fetchAuditLogs(token, { page, limit: PAGE_SIZE, event: eventParam || undefined });
+  items = result.items;
+  total = result.total;
+} catch {
+  return Astro.redirect("/login");
+}
+
+const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+const prev = page > 1 ? page - 1 : null;
+const next = page < pages ? page + 1 : null;
+
+const EVENT_LABELS: Record<string, string> = {
+  LOGIN_SUCCESS: "Inicio de sesión",
+  LOGIN_FAILED: "Login fallido",
+  LOGIN_RATE_LIMITED: "Login bloqueado",
+  PASSWORD_CHANGED: "Cambio de contraseña",
+  USER_CREATED: "Usuario creado",
+  USER_UPDATED: "Usuario actualizado",
+  USER_ACTIVATED: "Usuario activado",
+  USER_DEACTIVATED: "Usuario desactivado",
+  CHANGE_CREATED: "Novedad creada",
+  CHANGE_APPROVED: "Novedad aprobada",
+  CHANGE_REJECTED: "Novedad rechazada",
+  CHANGE_REVERTED: "Cambio revertido",
+};
+
+// Manteniendo los estilos originales para los eventos
+const EVENT_STYLES: Record<string, string> = {
+  LOGIN_SUCCESS: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  LOGIN_FAILED: "bg-red-500/10 text-red-400 border-red-500/20",
+  LOGIN_RATE_LIMITED: "bg-red-500/10 text-red-400 border-red-500/20",
+  PASSWORD_CHANGED: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+  USER_CREATED: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+  USER_UPDATED: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+  USER_ACTIVATED: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  USER_DEACTIVATED: "bg-gray-500/10 text-gray-400 border-gray-500/20",
+  CHANGE_CREATED: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  CHANGE_APPROVED: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  CHANGE_REJECTED: "bg-red-500/10 text-red-400 border-red-500/20",
+  CHANGE_REVERTED: "bg-gray-500/10 text-gray-400 border-gray-500/20",
+};
+
+const label = (event: string) => EVENT_LABELS[event] ?? event;
+const style = (event: string) => EVENT_STYLES[event] ?? "bg-gray-500/10 text-gray-400 border-gray-500/20";
+const link = (target: number) =>
+  `/dashboard/audit?page=${target}${eventParam ? `&event=${eventParam}` : ""}`;
+---
+
+<DashboardLayout title="Auditoría" user={user}>
+  <div class="space-y-8">
+    {/* Encabezado estilo Nexus */}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+          <span>Auditoría</span>
+          <span class="text-sm font-normal text-gray-500 tracking-normal bg-white/5 px-3 py-1 rounded-full border border-white/5">
+            {total} eventos
+          </span>
+        </h1>
+        <p class="mt-2 text-sm text-gray-400">
+          Registro de acciones: inicios de sesión, contraseñas, usuarios y novedades de horario.
+        </p>
+      </div>
+      <div class="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/5">
+        <span class="text-xs text-gray-400">Cluster</span>
+        <span class="text-xs text-rose-400 font-medium">US-EAST-4B</span>
+      </div>
+    </div>
+
+    <FlashMessage />
+
+    {/* Filtro - estilo Nexus */}
+    <div class="flex flex-wrap items-center gap-3 bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl p-4 hover:border-rose-500/20 transition-all duration-300">
+      <div class="flex items-center gap-2.5">
+        <div class="p-1.5 bg-rose-500/10 rounded-lg">
+          <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+        </div>
+        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Filtrar por evento</span>
+      </div>
+      <form method="GET" action="/dashboard/audit" class="flex items-center gap-2 ml-auto">
+        <select name="event" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-rose-500/40 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all duration-300">
+          <option value="" class="bg-[#0a0a0f] text-white">Todos los eventos</option>
+          {Object.entries(EVENT_LABELS).map(([value, text]) => (
+            <option value={value} selected={value === eventParam} class="bg-[#0a0a0f] text-white">
+              {text}
+            </option>
+          ))}
+        </select>
+        <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 rounded-xl text-sm font-medium text-white shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 hover:-translate-y-0.5 transition-all duration-300">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          Filtrar
+        </button>
+      </form>
+    </div>
+
+    {/* Tabla de auditoría - estilo Nexus */}
+    <div class="bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden hover:border-rose-500/20 transition-all duration-300">
+      <div class="p-4 border-b border-white/5 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="p-1.5 bg-rose-500/10 rounded-lg">
+            <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Registro de eventos</span>
+        </div>
+        <span class="text-[10px] text-gray-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+          {items.length} eventos
+        </span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] text-sm">
+          <thead>
+            <tr class="border-b border-white/5 text-left text-xs uppercase tracking-wider text-gray-400">
+              <th class="px-4 py-3 font-semibold">Fecha</th>
+              <th class="px-4 py-3 font-semibold">Evento</th>
+              <th class="px-4 py-3 font-semibold">Actor</th>
+              <th class="px-4 py-3 font-semibold">Usuario afectado</th>
+              <th class="px-4 py-3 font-semibold">Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 ? (
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                  <span class="text-2xl block mb-2">📋</span>
+                  No hay eventos registrados.
+                </td>
+              </tr>
+            ) : (
+              items.map((entry) => (
+                <tr class="border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors duration-200">
+                  <td class="whitespace-nowrap px-4 py-3 tabular-nums text-gray-500 text-xs">
+                    {entry.created_at.slice(0, 10)} · {entry.created_at.slice(11, 16)} UTC
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class={`
+                      inline-flex items-center gap-1.5 
+                      rounded-full px-2.5 py-0.5 
+                      text-[10px] font-medium 
+                      border
+                      ${style(entry.event)}
+                    `}>
+                      <span class="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50"></span>
+                      {label(entry.event)}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-white text-sm">{entry.actor?.name ?? "—"}</td>
+                  <td class="px-4 py-3 text-white text-sm">{entry.target_user?.name ?? "—"}</td>
+                  <td class="max-w-md px-4 py-3 text-gray-400 text-xs">
+                    <span class="block truncate" title={entry.detail ?? undefined}>
+                      {entry.detail ?? "—"}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {/* Paginación - estilo Nexus */}
+    {pages > 1 && (
+      <div class="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl px-4 py-3">
+        {prev ? (
+          <a href={link(prev)} class="inline-flex items-center gap-1.5 text-sm font-medium text-rose-400 hover:text-rose-300 transition-colors duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Anterior
+          </a>
+        ) : <span></span>}
+        <span class="text-sm text-gray-500">Página {page} de {pages}</span>
+        {next ? (
+          <a href={link(next)} class="inline-flex items-center gap-1.5 text-sm font-medium text-rose-400 hover:text-rose-300 transition-colors duration-200">
+            Siguiente
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+        ) : <span></span>}
+      </div>
+    )}
+
+    {/* Footer informativo */}
+    <div class="pt-4 border-t border-white/5 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-4 text-xs text-gray-500">
+        <span>Última actualización: {new Date().toLocaleString('es-ES')}</span>
+        <span class="hidden sm:inline">·</span>
+        <span class="hidden sm:inline">Cluster: US-EAST-4B</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-gray-600">
+        <span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+        <span>Datos sincronizados</span>
+      </div>
+    </div>
+
+    <p class="text-xs text-gray-500 bg-white/5 border border-white/5 rounded-xl px-4 py-3">
+      <span class="text-gray-600">ℹ️</span> Registro de acciones: inicios de sesión, contraseñas, usuarios y novedades de horario. Las horas se muestran en UTC (hora del servidor de base de datos).
+    </p>
+  </div>
+</DashboardLayout>
+
+<style>
+  select option {
+    background-color: #0a0a0f;
+    color: white;
+  }
+</style>

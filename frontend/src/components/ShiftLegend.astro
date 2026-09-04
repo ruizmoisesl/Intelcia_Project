@@ -1,0 +1,62 @@
+---
+import { shiftStyle } from "../lib/shift-styles";
+import type { ShiftDefinition } from "../services/api";
+
+interface Props {
+  shifts: ShiftDefinition[];
+}
+
+const { shifts } = Astro.props;
+---
+
+<div class="bg-white/5 backdrop-blur-sm border border-white/5 rounded-xl p-4 hover:border-rose-500/20 transition-all duration-300">
+  <div class="flex items-center gap-2.5 mb-3">
+    <div class="p-1 bg-rose-500/10 rounded-lg">
+      <svg class="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+      </svg>
+    </div>
+    <h3 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+      Leyenda de turnos
+    </h3>
+    <span class="ml-auto text-[9px] text-gray-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+      {shifts.length} turnos
+    </span>
+  </div>
+
+  <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+    {shifts.map((shift) => {
+      const style = shiftStyle(shift.color);
+      return (
+        <li class="group flex items-center gap-3 bg-white/5 border border-white/5 rounded-lg px-3 py-2 hover:bg-white/10 hover:border-rose-500/20 transition-all duration-300">
+          <div class="flex-shrink-0">
+            <span class={`
+              inline-block w-3 h-3 rounded-md 
+              ${style.dot}
+              transition-all duration-200
+              group-hover:scale-110
+            `}></span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-medium text-white truncate">{shift.name}</p>
+            <p class="text-[10px] text-gray-400 tabular-nums">
+              {shift.start}–{shift.end}
+            </p>
+          </div>
+          {shift.id && (
+            <span class="text-[8px] font-mono text-gray-600 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+              {shift.id}
+            </span>
+          )}
+        </li>
+      );
+    })}
+  </ul>
+
+  <div class="mt-3 pt-2 border-t border-white/5 flex items-center gap-2 text-[10px] text-gray-500">
+    <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>Colores indicativos según tipo de turno</span>
+  </div>
+</div>

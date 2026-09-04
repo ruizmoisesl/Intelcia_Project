@@ -1,0 +1,215 @@
+---
+import ChangeStatusBadge from "../../components/ChangeStatusBadge.astro";
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+import FlashMessage from "../../components/FlashMessage.astro";
+import NovedadForm from "../../components/NovedadForm.astro";
+import PendingChangeCard from "../../components/PendingChangeCard.astro";
+import ShiftBadge from "../../components/ShiftBadge.astro";
+import { addDaysIso, formatRange } from "../../lib/format";
+import {
+  fetchChanges,
+  fetchMyChanges,
+  fetchPendingChanges,
+  fetchShifts,
+  fetchTodaySchedule,
+  type ScheduleChange,
+  type ShiftDefinition,
+  type TodaySchedule,
+} from "../../services/api";
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect("/login");
+const token = Astro.locals.token ?? "";
+const isApprover = user.role === "SUPERVISOR" || user.role === "ADMIN";
+
+let shifts: ShiftDefinition[] = [];
+let myChanges: ScheduleChange[] = [];
+let pending: ScheduleChange[] = [];
+let history: ScheduleChange[] = [];
+
+try {
+  shifts = await fetchShifts(token);
+  myChanges = await fetchMyChanges(token);
+  if (isApprover) {
+    pending = await fetchPendingChanges(token);
+    history = (await fetchChanges(token)).filter((change) => change.status !== "PENDING");
+  }
+} catch {
+  return Astro.redirect("/login");
+}
+
+let todayInfo: TodaySchedule | null = null;
+try {
+  todayInfo = await fetchTodaySchedule(token);
+} catch { return Astro.redirect("/login"); }
+---
+
+<DashboardLayout title="Novedades" user={user}>
+  <div class="space-y-8">
+    {/* Encabezado estilo Nexus */}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+          <span>Novedades de horario</span>
+          <span class="text-sm font-normal text-gray-500 tracking-normal bg-white/5 px-3 py-1 rounded-full border border-white/5">
+            {isApprover ? `Pendientes: ${pending.length}` : `Tuyas: ${myChanges.length}`}
+          </span>
+        </h1>
+        <p class="mt-2 text-sm text-gray-400">
+          Solicita un cambio de turno para una semana. Un supervisor o administrador debe aprobarlo.
+        </p>
+      </div>
+      <div class="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/5">
+        <span class="text-xs text-gray-400">Estado</span>
+        <span class="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+          <span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+          Activo
+        </span>
+      </div>
+    </div>
+
+    <FlashMessage />
+
+    {/* Formulario de solicitud - estilo Nexus */}
+    {user.role !== "ADMIN" && (
+      <section class="bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl p-6 hover:border-rose-500/20 transition-all duration-300">
+        <div class="flex items-center gap-2.5 mb-4">
+          <div class="p-1.5 bg-rose-500/10 rounded-lg">
+            <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Solicitar cambio de turno
+          </h2>
+        </div>
+        <NovedadForm shifts={shifts} today={todayInfo?.date ?? null} />
+      </section>
+    )}
+
+    {/* Pendientes de revisión - estilo Nexus */}
+    {isApprover && (
+      <section class="space-y-4">
+        <div class="flex items-center gap-2.5">
+          <div class="p-1.5 bg-amber-500/10 rounded-lg">
+            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Pendientes de revisión
+          </h2>
+          <span class="ml-auto px-2.5 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-400 rounded-full">
+            {pending.length}
+          </span>
+        </div>
+        {pending.length === 0 ? (
+          <div class="bg-white/5 border border-dashed border-white/10 rounded-xl px-4 py-8 text-center text-sm text-gray-500">
+            <span class="text-2xl block mb-2">✅</span>
+            No hay novedades pendientes.
+          </div>
+        ) : (
+          <div class="grid gap-4 xl:grid-cols-2">
+            {pending.map((change) => <PendingChangeCard change={change} />)}
+          </div>
+        )}
+      </section>
+    )}
+
+    {/* Mis novedades - estilo Nexus */}
+    <section class="space-y-4">
+      <div class="flex items-center gap-2.5">
+        <div class="p-1.5 bg-rose-500/10 rounded-lg">
+          <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          Mis novedades
+        </h2>
+        <span class="ml-auto px-2.5 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-400 rounded-full">
+          {myChanges.length}
+        </span>
+      </div>
+      {myChanges.length === 0 ? (
+        <div class="bg-white/5 border border-dashed border-white/10 rounded-xl px-4 py-8 text-center text-sm text-gray-500">
+          <span class="text-2xl block mb-2">📋</span>
+          No has enviado novedades.
+        </div>
+      ) : (
+        <div class="bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden hover:border-rose-500/20 transition-all duration-300">
+          <div class="overflow-x-auto">
+            <ul class="divide-y divide-white/5">
+              {myChanges.map((change) => (
+                <li class="flex flex-wrap items-center gap-3 px-4 py-3 text-sm hover:bg-white/5 transition-colors duration-200">
+                  <span class="w-44 font-medium tabular-nums text-white text-xs">
+                    {formatRange(change.week_start, addDaysIso(change.week_start, 6))}
+                  </span>
+                  <ShiftBadge shift={change.requested_shift} size="sm" />
+                  <span class="min-w-0 flex-1 truncate text-gray-400 text-xs" title={change.reason ?? undefined}>
+                    {change.reason ?? "—"}
+                  </span>
+                  <ChangeStatusBadge status={change.status} />
+                  {change.review_note && (
+                    <span class="w-full text-[10px] text-gray-500 sm:w-auto">Nota: {change.review_note}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </section>
+
+    {/* Historial reciente - estilo Nexus */}
+    {isApprover && history.length > 0 && (
+      <section class="space-y-4">
+        <div class="flex items-center gap-2.5">
+          <div class="p-1.5 bg-gray-500/10 rounded-lg">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Historial reciente
+          </h2>
+          <span class="ml-auto px-2.5 py-0.5 text-[10px] font-bold bg-gray-500/20 text-gray-400 rounded-full">
+            {history.length}
+          </span>
+        </div>
+        <div class="bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden hover:border-rose-500/20 transition-all duration-300">
+          <div class="overflow-x-auto">
+            <ul class="divide-y divide-white/5">
+              {history.slice(0, 15).map((change) => (
+                <li class="flex flex-wrap items-center gap-3 px-4 py-3 text-sm hover:bg-white/5 transition-colors duration-200">
+                  <span class="font-medium text-white text-xs">{change.user.name}</span>
+                  <span class="w-44 tabular-nums text-gray-500 text-xs">
+                    {formatRange(change.week_start, addDaysIso(change.week_start, 6))}
+                  </span>
+                  <ShiftBadge shift={change.requested_shift} size="sm" />
+                  <ChangeStatusBadge status={change.status} />
+                  <span class="ml-auto text-[10px] text-gray-500">
+                    {change.reviewed_by ? `Revisada por ${change.reviewed_by.name}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+    )}
+
+    {/* Footer informativo */}
+    <div class="pt-4 border-t border-white/5 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-4 text-xs text-gray-500">
+        <span>Última actualización: {new Date().toLocaleString('es-ES')}</span>
+        <span class="hidden sm:inline">·</span>
+        <span class="hidden sm:inline">Cluster: US-EAST-4B</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-gray-600">
+        <span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+        <span>Datos sincronizados</span>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>

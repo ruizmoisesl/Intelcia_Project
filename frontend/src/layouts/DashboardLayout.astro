@@ -1,0 +1,411 @@
+---
+import type { ApiUser } from "../services/api";
+import "../styles/global.css";
+
+import MobileHeader from "../components/MobileHeader.astro";
+import Sidebar from "../components/Sidebar.astro";
+
+interface Props {
+  title: string;
+  user: ApiUser;
+}
+
+const { title, user } = Astro.props;
+const currentPath = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} · Nexus Central</title>
+    <style>
+      /* Estilos base Nexus Central */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #0a0a0f;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        color: white;
+      }
+
+      /* Fondo con grid tecnológico */
+      .dashboard-bg {
+        background: 
+          radial-gradient(ellipse at 20% 50%, rgba(232, 62, 140, 0.06) 0%, transparent 60%),
+          radial-gradient(ellipse at 80% 50%, rgba(232, 62, 140, 0.04) 0%, transparent 60%),
+          radial-gradient(ellipse at 50% 0%, rgba(232, 62, 140, 0.03) 0%, transparent 50%),
+          #0a0a0f;
+        position: relative;
+        min-height: 100vh;
+      }
+
+      .dashboard-bg::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image: 
+          linear-gradient(rgba(232, 62, 140, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(232, 62, 140, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Sidebar estilo Nexus */
+      .sidebar-wrapper {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        z-index: 40;
+        background: rgba(10, 10, 15, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.04);
+        overflow-y: auto;
+      }
+
+      /* Main content area */
+      .main-content {
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+      }
+
+      /* Header superior estilo Nexus */
+      .nexus-header {
+        background: rgba(10, 10, 15, 0.8);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        position: sticky;
+        top: 0;
+        z-index: 30;
+      }
+
+      /* Contenedor principal */
+      .content-container {
+        position: relative;
+        z-index: 1;
+        padding: 2rem 2rem 2rem 2rem;
+        max-width: 1280px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* Indicador de sección estilo Nexus */
+      .section-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+
+      .section-indicator .dot {
+        width: 4px;
+        height: 20px;
+        background: linear-gradient(135deg, #e83e8c 0%, #d63384 100%);
+        border-radius: 4px;
+        flex-shrink: 0;
+      }
+
+      .section-indicator .title {
+        font-size: 11px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+
+      .section-indicator .title span {
+        color: rgba(255, 255, 255, 0.15);
+        font-weight: 400;
+      }
+
+      /* Efectos decorativos */
+      .glow-orbe {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        pointer-events: none;
+        opacity: 0.3;
+      }
+
+      .glow-orbe.top-right {
+        top: -10%;
+        right: -10%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(232, 62, 140, 0.2) 0%, transparent 70%);
+      }
+
+      .glow-orbe.bottom-left {
+        bottom: -10%;
+        left: -10%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(232, 62, 140, 0.15) 0%, transparent 70%);
+      }
+
+      /* Scrollbar personalizada estilo Nexus */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(232, 62, 140, 0.3);
+        border-radius: 10px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(232, 62, 140, 0.5);
+      }
+
+      /* Animaciones */
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .fade-in {
+        animation: fadeInUp 0.5s ease-out forwards;
+      }
+
+      @keyframes pulseGlow {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.5; }
+      }
+
+      .pulse-glow {
+        animation: pulseGlow 4s ease-in-out infinite;
+      }
+
+      /* Status bar estilo Nexus */
+      .status-bar {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 0.5rem 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.03);
+        margin-top: 2rem;
+      }
+
+      .status-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.15);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+
+      .status-dot {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        background: #22c55e;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+
+      /* Transición para el contenido */
+      .slot-content {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .sidebar-wrapper {
+          position: fixed;
+          transform: translateX(-100%);
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          width: 280px;
+          height: 100vh;
+          background: rgba(10, 10, 15, 0.98);
+        }
+
+        .sidebar-wrapper.open {
+          transform: translateX(0);
+        }
+
+        .content-container {
+          padding: 1.5rem;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .content-container {
+          padding: 1rem;
+        }
+        
+        .section-indicator .title {
+          font-size: 10px;
+        }
+
+        .status-bar {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.5rem;
+        }
+      }
+
+      /* Estilos para los componentes hijos */
+      :global(.card-nexus) {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+      }
+
+      :global(.card-nexus:hover) {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(232, 62, 140, 0.15);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+      }
+
+      :global(.text-nexus-primary) {
+        color: #e83e8c;
+      }
+
+      :global(.text-nexus-secondary) {
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      :global(.border-nexus) {
+        border-color: rgba(255, 255, 255, 0.04);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard-bg">
+      <div class="min-h-screen lg:flex">
+        <!-- Sidebar con diseño Nexus -->
+        <div class="sidebar-wrapper" id="sidebar">
+          <Sidebar user={user} currentPath={currentPath} />
+        </div>
+        
+        <!-- Contenido principal -->
+        <main class="min-w-0 flex-1 main-content">
+          <!-- Header superior estilo Nexus -->
+          <div class="nexus-header">
+            <MobileHeader user={user} currentPath={currentPath} />
+          </div>
+
+          <!-- Contenedor del contenido -->
+          <div class="content-container fade-in">
+            {/* Efectos decorativos */}
+            <div class="glow-orbe top-right pulse-glow"></div>
+            <div class="glow-orbe bottom-left pulse-glow" style="animation-delay: 2s;"></div>
+
+            {/* Indicador de sección estilo Nexus */}
+            <div class="section-indicator">
+              <div class="dot"></div>
+              <div class="title">
+                {title}
+                <span>· Nexus Central</span>
+              </div>
+              <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+                <span class="status-item">
+                  <span class="status-dot"></span>
+                  Sync Activo
+                </span>
+                <span class="status-item" style="font-size: 9px; color: rgba(255,255,255,0.08);">
+                  v2.4.1
+                </span>
+              </div>
+            </div>
+
+            {/* Slot con contenedor elegante */}
+            <div class="relative">
+              <div class="slot-content">
+                <slot />
+              </div>
+            </div>
+
+            {/* Status bar inferior */}
+            <div class="status-bar">
+              <span class="status-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 6v6l4 2"/>
+                </svg>
+                Cluster: US-EAST-4B
+              </span>
+              <span class="status-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                ISO/IEC 27001
+              </span>
+              <span class="status-item" style="margin-left: auto;">
+                <span class="status-dot"></span>
+                {new Date().toLocaleTimeString('es-ES', { hour12: false })}
+              </span>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      // Toggle sidebar en móvil
+      document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.getElementById('sidebar');
+        const mobileHeader = document.querySelector('mobile-header');
+
+        if (!sidebar) return;
+        
+        // Escuchar eventos de toggle desde MobileHeader
+        document.addEventListener('toggle-sidebar', () => {
+          sidebar.classList.toggle('open');
+        });
+
+        // Cerrar sidebar al hacer click fuera en móvil
+        document.addEventListener('click', (e) => {
+          if (window.innerWidth < 1024) {
+            const target = e.target;
+            const isSidebar = target instanceof Node && sidebar.contains(target);
+            const isToggle = target instanceof Element && target.closest('[data-toggle-sidebar]') !== null;
+            if (!isSidebar && !isToggle && sidebar.classList.contains('open')) {
+              sidebar.classList.remove('open');
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

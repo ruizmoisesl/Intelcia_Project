@@ -1,0 +1,43 @@
+---
+import { shiftStyle } from "../lib/shift-styles";
+import type { ShiftInfo } from "../services/api";
+
+interface Props {
+  shift: Pick<ShiftInfo, "id" | "name" | "color">;
+  size?: "sm" | "md" | "lg";
+}
+
+const { shift, size = "md" } = Astro.props;
+const style = shiftStyle(shift.color);
+
+const sizeClasses = {
+  sm: "text-[10px] px-2 py-0.5 gap-1",
+  md: "text-xs px-3 py-1 gap-1.5",
+  lg: "text-sm px-4 py-1.5 gap-2"
+};
+
+const dotSizes = {
+  sm: "h-1 w-1",
+  md: "h-1.5 w-1.5",
+  lg: "h-2 w-2"
+};
+---
+
+<span class={`
+  inline-flex items-center rounded-full font-medium
+  ${sizeClasses[size]}
+  ${style.badge}
+  transition-all duration-200
+  hover:scale-105 hover:shadow-lg
+`}>
+  <span class={`
+    rounded-full 
+    ${dotSizes[size]}
+    ${style.dot}
+    animate-pulse
+  `}></span>
+  {shift.name}
+  {size === "lg" && shift.id && (
+    <span class="text-[10px] opacity-50 font-mono">#{shift.id}</span>
+  )}
+</span>

@@ -1,0 +1,30 @@
+---
+import type { IconName } from "../lib/icons";
+import Icon from "./Icon.astro";
+
+interface Props {
+  title: string;
+  icon: IconName;
+}
+
+const { title, icon } = Astro.props;
+---
+
+<div class="group bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl p-5 hover:bg-white/10 hover:border-rose-500/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-rose-500/5">
+  <div class="flex items-center gap-2.5">
+    <div class="p-2 bg-rose-500/10 rounded-lg group-hover:bg-rose-500/20 transition-all duration-300">
+      <Icon name={icon} class="h-4 w-4 text-rose-400 group-hover:text-rose-300 transition-colors duration-300" />
+    </div>
+    <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
+      {title}
+    </h2>
+    {title === "Novedades" && (
+      <span class="ml-auto px-2 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-400 rounded-full">
+        3
+      </span>
+    )}
+  </div>
+  <div class="mt-4 text-white">
+    <slot />
+  </div>
+</div>

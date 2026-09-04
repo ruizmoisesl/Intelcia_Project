@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    container_name: portal-backend
+    ports:
+      - "8000:8000"
+    environment:
+      GOOGLE_CALENDAR_API_KEY: ${GOOGLE_CALENDAR_API_KEY:-}
+      GOOGLE_CALENDAR_ID: ${GOOGLE_CALENDAR_ID:-es.colombian#holiday@group.v.calendar.google.com}
+      HOLIDAYS_PROVIDER: ${HOLIDAYS_PROVIDER:-auto}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-cambiar-en-produccion-0123456789abcdef}
+      DATABASE_URL: sqlite:////data/portal.db
+      ALLOWED_ORIGINS: '["http://localhost:4321"]'
+      DEBUG: "true"
+    volumes:
+      - portal_data:/data
+
+  frontend:
+    build: ./frontend
+    container_name: portal-frontend
+    ports:
+      - "4321:4321"
+    environment:
+      API_URL: http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  portal_data:

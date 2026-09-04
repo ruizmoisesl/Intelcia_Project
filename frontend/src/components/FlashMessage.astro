@@ -1,0 +1,120 @@
+---
+const params = Astro.url.searchParams;
+
+const messages: { type: "ok" | "error"; text: string }[] = [];
+if (params.has("created")) messages.push({ type: "ok", text: "Novedad enviada: queda pendiente de aprobación." });
+if (params.has("reviewed")) messages.push({ type: "ok", text: "Novedad revisada." });
+if (params.has("assigned")) messages.push({ type: "ok", text: "Turno asignado para la semana." });
+if (params.has("reverted")) messages.push({ type: "ok", text: "Cambio revertido: vuelve al horario automático." });
+if (params.has("user_created")) messages.push({ type: "ok", text: "Usuario creado." });
+if (params.has("user_updated")) messages.push({ type: "ok", text: "Usuario actualizado." });
+if (params.has("user_deactivated")) messages.push({ type: "ok", text: "Usuario desactivado." });
+if (params.has("password_changed")) messages.push({ type: "ok", text: "Contraseña actualizada correctamente." });
+
+
+const error = params.get("error");
+if (error) messages.push({ type: "error", text: error });
+---
+
+{messages.length > 0 && (
+  <div class="space-y-3">
+    {messages.map((message) => (
+      <div
+        role={message.type === "error" ? "alert" : "status"}
+        class={`
+          relative overflow-hidden
+          rounded-xl px-5 py-4 
+          text-sm font-medium
+          border backdrop-blur-sm
+          transition-all duration-300
+          animate-slideDown
+          ${message.type === "error"
+            ? "bg-red-500/10 border-red-500/20 text-red-400"
+            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+          }
+        `}
+      >
+        {/* Barra lateral de color */}
+        <div class={`
+          absolute left-0 top-0 bottom-0 w-1 
+          ${message.type === "error" 
+            ? "bg-gradient-to-b from-red-500 to-red-600" 
+            : "bg-gradient-to-b from-emerald-500 to-emerald-600"
+          }
+        `}></div>
+        
+        {/* Contenido del mensaje */}
+        <div class="flex items-start gap-3 pl-3">
+          {/* Icono */}
+          <div class="flex-shrink-0 mt-0.5">
+            {message.type === "error" ? (
+              <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+          </div>
+          
+          {/* Texto */}
+          <div class="flex-1">
+            <span class="block text-[13px] leading-relaxed">
+              {message.text}
+            </span>
+          </div>
+          
+          {/* Botón de cierre opcional */}
+          <button 
+            class="flex-shrink-0 text-gray-600 hover:text-gray-400 transition-colors duration-200 mt-0.5"
+            onclick="this.closest('[role]').remove()"
+            aria-label="Cerrar mensaje"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Efecto de brillo sutil */}
+        <div class="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500"></div>
+      </div>
+    ))}
+  </div>
+)}
+
+<style>
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-12px);
+      max-height: 0;
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      max-height: 200px;
+    }
+  }
+  
+  .animate-slideDown {
+    animation: slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  
+  .animate-slideDown:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+  
+  .animate-slideDown:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+  
+  .animate-slideDown:nth-child(4) {
+    animation-delay: 0.3s;
+  }
+  
+  .animate-slideDown:nth-child(5) {
+    animation-delay: 0.4s;
+  }
+</style>

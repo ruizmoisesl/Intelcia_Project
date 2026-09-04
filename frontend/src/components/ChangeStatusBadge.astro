@@ -1,0 +1,57 @@
+---
+interface Props {
+  status: string;
+}
+
+const { status } = Astro.props;
+
+const STATUS: Record<string, { label: string; cls: string; icon: string }> = {
+  PENDING: { 
+    label: "Pendiente", 
+    cls: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    icon: "⏳"
+  },
+  APPROVED: { 
+    label: "Aprobada", 
+    cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    icon: "✓"
+  },
+  REJECTED: { 
+    label: "Rechazada", 
+    cls: "bg-red-500/10 text-red-400 border-red-500/20",
+    icon: "✕"
+  },
+  SUPERSEDED: { 
+    label: "Reemplazada", 
+    cls: "bg-gray-500/10 text-gray-400 border-gray-500/20",
+    icon: "↺"
+  },
+};
+
+const info = STATUS[status] ?? { 
+  label: status, 
+  cls: "bg-gray-500/10 text-gray-400 border-gray-500/20",
+  icon: "•"
+};
+---
+
+<span class={`
+  inline-flex items-center gap-1.5 
+  rounded-full px-3 py-1 
+  text-[11px] font-medium 
+  border 
+  ${info.cls}
+  transition-all duration-200
+  hover:scale-105
+  hover:shadow-lg
+`}>
+  <span class="text-[13px]">{info.icon}</span>
+  {info.label}
+</span>
+
+<style>
+  /* Efecto adicional de hover para mejor feedback */
+  .hover\:shadow-lg:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+</style>

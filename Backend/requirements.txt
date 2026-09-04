@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic[email]
+pydantic-settings
+alembic
+PyJWT
+bcrypt
+httpx
+tzdata
+
+# Pruebas
+pytest

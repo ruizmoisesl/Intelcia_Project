@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.db
+*.sqlite3
+
+# Node
+node_modules/
+dist/
+.astro/
+npm-debug.log*
+
+# Entornos y secretos
+.env
+.env.*
+!.env.example
+
+# Varios
+.DS_Store
+*.log

@@ -1,0 +1,97 @@
+---
+import { formatShortDate } from "../lib/format";
+import { shiftStyle } from "../lib/shift-styles";
+import type { ShiftDefinition, WeekSchedule } from "../services/api";
+import Icon from "./Icon.astro";
+import ShiftLegend from "./ShiftLegend.astro";
+
+interface Props {
+  week: WeekSchedule;
+  shifts: ShiftDefinition[];
+  today?: string | null;
+}
+
+const { week, shifts, today = null } = Astro.props;
+
+// Solo pinta lo que la API calcula: cero lógica de turnos aquí.
+const workingDays = week.days.filter((day) => day.start !== null);
+const restDays = week.days.filter((day) => day.start === null);
+const baseStyle = shiftStyle(week.shift.color);
+const gridClass = workingDays.length > 5 ? "lg:grid-cols-6" : "lg:grid-cols-5";
+---
+
+<div class="space-y-6">
+  <div class:list={["grid gap-4 sm:grid-cols-2 md:grid-cols-3", gridClass]}>
+    {workingDays.map((day) => {
+      const isToday = day.date === today;
+      const dayStyle = day.is_holiday ? shiftStyle("purple") : baseStyle;
+      return (
+        <article
+          class:list={[
+            "group relative bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl p-5 hover:bg-white/10 hover:border-rose-500/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-rose-500/5",
+            isToday && "border-rose-500/30 ring-2 ring-rose-500/20",
+          ]}
+        >
+          {/* Efecto de brillo en hover */}
+          <div class="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
+          
+          <header class="flex items-center justify-between gap-2 relative z-10">
+            <h3 class={`text-sm font-semibold ${dayStyle.time}`}>{day.day_name}</h3>
+            <span class="text-xs tabular-nums text-gray-500">{formatShortDate(day.date)}</span>
+          </header>
+
+          {day.is_holiday && (
+            <span
+              class={`mt-2 self-start rounded-full px-2.5 py-0.5 text-[10px] font-medium border ${dayStyle.badge}`}
+              title={day.holiday_name ?? "Festivo"}
+            >
+              🎉 Festivo
+            </span>
+          )}
+
+          <div class="mt-4 relative z-10">
+            <p class={`text-2xl font-bold tabular-nums ${dayStyle.time}`}>{day.start}</p>
+            <div class="my-2 flex items-center gap-2">
+              <span class={`h-px flex-1 opacity-20 ${dayStyle.chip}`}></span>
+              <Icon name="arrowDown" class="h-3.5 w-3.5 text-gray-600" />
+              <span class={`h-px flex-1 opacity-20 ${dayStyle.chip}`}></span>
+            </div>
+            <p class={`text-2xl font-bold tabular-nums ${dayStyle.time}`}>{day.end}</p>
+          </div>
+
+          <footer class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between gap-2 relative z-10">
+            {day.holiday_name && (
+              <span class="truncate text-[11px] text-gray-500" title={day.holiday_name}>
+                {day.holiday_name}
+              </span>
+            )}
+            <div class="flex items-center gap-2 ml-auto">
+              {isToday && (
+                <span class="rounded-full bg-gradient-to-r from-rose-500 to-rose-600 px-2.5 py-0.5 text-[10px] font-medium text-white shadow-lg shadow-rose-500/25">
+                  Hoy
+                </span>
+              )}
+            </div>
+          </footer>
+        </article>
+      );
+    })}
+  </div>
+
+  {restDays.length > 0 && (
+    <div class="bg-white/5 border border-dashed border-white/10 rounded-xl px-4 py-3 text-sm text-gray-400 flex items-start gap-3 hover:border-rose-500/20 transition-all duration-300">
+      <div class="flex-shrink-0 mt-0.5">
+        <Icon name="coffee" class="h-4 w-4 text-gray-500" />
+      </div>
+      <span>
+        {restDays.map((day) =>
+          day.is_holiday
+            ? `${day.day_name} — festivo${day.holiday_name ? ` (${day.holiday_name})` : ""}`
+            : day.day_name,
+        ).join(" · ")}: descanso (sin turno asignado).
+      </span>
+    </div>
+  )}
+
+  <ShiftLegend shifts={shifts} />
+</div>

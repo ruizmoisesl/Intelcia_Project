@@ -1,0 +1,112 @@
+---
+import type { IconName } from "../lib/icons";
+import Icon from "./Icon.astro";
+
+interface Props {
+  currentPath: string;
+  role?: string;
+}
+
+const { currentPath, role } = Astro.props;
+
+interface NavItem { href: string; label: string; icon: IconName }
+
+const activeItems: NavItem[] = [
+  { href: "/dashboard", label: "Inicio", icon: "home" },
+  { href: "/dashboard/horarios", label: "Horarios", icon: "calendar" },
+  { href: "/dashboard/novedades", label: "Novedades", icon: "bell" },
+];
+
+// Personal: solo supervisores y administradores.
+if (role === "SUPERVISOR" || role === "ADMIN") {
+  activeItems.push({ href: "/dashboard/personal", label: "Personal", icon: "users" });
+}
+
+if (role === "ADMIN") {
+  activeItems.push({ href: "/dashboard/usuarios", label: "Usuarios", icon: "user" });
+  activeItems.push({ href: "/dashboard/audit", label: "Auditoría", icon: "clipboard" });
+}
+
+const upcomingItems: { label: string; icon: IconName }[] = [
+  { label: "Tareas", icon: "clipboard" },
+  { label: "Tickets", icon: "ticket" },
+  { label: "Documentos", icon: "folder" },
+  { label: "Reportes", icon: "chart" },
+  { label: "Configuración", icon: "settings" },
+];
+---
+
+<nav aria-label="Navegación principal" class="space-y-1">
+  {activeItems.map((item) => {
+    const isActive = currentPath === item.href;
+    return (
+      <a
+        href={item.href}
+        aria-current={isActive ? "page" : undefined}
+        class:list={[
+          "group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200",
+          isActive 
+            ? "bg-gradient-to-r from-rose-500/20 to-rose-600/10 text-white border border-rose-500/20 shadow-lg shadow-rose-500/5" 
+            : "text-gray-400 hover:text-white hover:bg-white/5",
+        ]}
+      >
+        {/* Indicador de página activa */}
+        {isActive && (
+          <span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-gradient-to-b from-rose-500 to-rose-600 rounded-full"></span>
+        )}
+        
+        <div class:list={[
+          "p-1.5 rounded-lg transition-all duration-200",
+          isActive 
+            ? "bg-rose-500/10 text-rose-400" 
+            : "text-gray-500 group-hover:text-rose-400"
+        ]}>
+          <Icon name={item.icon} class="h-4.5 w-4.5" />
+        </div>
+        <span class="flex-1">{item.label}</span>
+        
+        {/* Badge de novedades (ejemplo) */}
+        {item.label === "Novedades" && (
+          <span class="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/20 text-rose-400 rounded-full">
+            3
+          </span>
+        )}
+      </a>
+    );
+  })}
+
+
+
+  {/* Sección "Próximamente" */}
+  <div class="mt-6 pt-4 border-t border-white/5">
+    <p class="px-3 pb-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+      <span class="w-4 h-px bg-gray-500/30"></span>
+      Próximamente
+      <span class="w-4 h-px bg-gray-500/30"></span>
+    </p>
+    <ul class="space-y-0.5">
+      {upcomingItems.map((item) => (
+        <li
+          class="group flex cursor-not-allowed items-center gap-3 rounded-xl px-3.5 py-2 text-sm text-gray-500 hover:bg-white/5 transition-all duration-200"
+          title="Módulo no disponible en esta versión"
+        >
+          <div class="p-1.5 rounded-lg text-gray-600 group-hover:text-gray-400 transition-colors duration-200">
+            <Icon name={item.icon} class="h-4.5 w-4.5" />
+          </div>
+          <span class="flex-1">{item.label}</span>
+          <span class="text-[9px] font-medium text-gray-600/50">próximo</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+</nav>
+
+<style>
+  /* Ajuste para el tamaño de iconos */
+  .h-4\.5 {
+    height: 1.125rem;
+  }
+  .w-4\.5 {
+    width: 1.125rem;
+  }
+</style>
