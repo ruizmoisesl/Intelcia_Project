@@ -22,3 +22,6 @@ npm-debug.log*
 # Varios
 .DS_Store
 *.log
+
+# .gitignore (raíz) — añadir
+uploads/

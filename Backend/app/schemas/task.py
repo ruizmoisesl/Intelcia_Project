@@ -66,3 +66,41 @@ class TaskListOut(BaseModel):
     total: int
     today: date
     items: list[TaskOut]
+
+
+class TaskAttachmentOut(BaseModel):
+    id: int
+    original_name: str
+    content_type: str | None
+    size_bytes: int
+    url: str  # ruta autenticada del frontend (/archivos/{id})
+
+
+class TaskCommentOut(BaseModel):
+    id: int
+    user: UserBrief
+    content: str | None
+    attachments: list[TaskAttachmentOut]
+    created_at: datetime
+
+
+class TaskDetailOut(TaskOut):
+    events: list[TaskEventOut] = []
+    comments: list[TaskCommentOut] = []
+
+
+def attachment_out(attachment) -> TaskAttachmentOut:
+    return TaskAttachmentOut(
+        id=attachment.id, original_name=attachment.original_name,
+        content_type=attachment.content_type, size_bytes=attachment.size_bytes,
+        url=f"/archivos/{attachment.id}",
+    )
+
+
+def comment_out(comment) -> TaskCommentOut:
+    return TaskCommentOut(
+        id=comment.id, user=UserBrief.model_validate(comment.user),
+        content=comment.content,
+        attachments=[attachment_out(att) for att in comment.attachments],
+        created_at=comment.created_at,
+    )

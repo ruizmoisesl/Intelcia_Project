@@ -16,6 +16,8 @@ if (params.has("task_created")) messages.push({ type: "ok", text: "Tarea creada.
 if (params.has("task_updated")) messages.push({ type: "ok", text: "Tarea actualizada." });
 if (params.has("task_deleted")) messages.push({ type: "ok", text: "Tarea eliminada." });
 if (params.has("task_pushed")) messages.push({ type: "ok", text: "Tarea enviada y enlazada." });
+if (params.has("comment_created")) messages.push({ type: "ok", text: "Comentario publicado." });
+if (params.has("comment_deleted")) messages.push({ type: "ok", text: "Comentario eliminado." });
 
 
 const error = params.get("error");

@@ -1,6 +1,8 @@
-<!-- TaskPriorityBadge.astro -->
 ---
-interface Props { priority: string; }
+interface Props {
+  priority: string;
+}
+
 const { priority } = Astro.props;
 const PRIORITY: Record<string, { label: string; cls: string }> = {
   URGENT: { label: "Urgente", cls: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300" },
@@ -8,6 +10,10 @@ const PRIORITY: Record<string, { label: string; cls: string }> = {
   MEDIUM: { label: "Media", cls: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300" },
   LOW: { label: "Baja", cls: "bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300" },
 };
+
 const info = PRIORITY[priority] ?? { label: priority, cls: "bg-slate-100 text-slate-600" };
 ---
-<span class={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium ${info.cls}`}>{info.label}</span>
+
+<span class={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium ${info.cls}`}>
+  {info.label}
+</span>

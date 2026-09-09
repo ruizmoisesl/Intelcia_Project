@@ -43,5 +43,9 @@ class Settings(BaseSettings):
     TRELLO_TOKEN: str | None = None
     TRELLO_LIST_ID: str | None = None     # ID de la lista destino
 
+    # ── Adjuntos de comentarios ──
+    UPLOADS_DIR: str = "./uploads"
+    MAX_UPLOAD_MB: int = 5
+
 
 settings = Settings()

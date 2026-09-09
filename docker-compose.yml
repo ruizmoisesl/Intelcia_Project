@@ -34,6 +34,8 @@ services:
       GOOGLE_CALENDAR_API_KEY: ${GOOGLE_CALENDAR_API_KEY:-}
       HOLIDAYS_PROVIDER: ${HOLIDAYS_PROVIDER:-auto}
       DEBUG: "true"
+    volumes:
+      - portal_uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -50,3 +52,4 @@ services:
 
 volumes:
   mysql_data:
+  portal_uploads: 

@@ -8,11 +8,43 @@
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import Date, Enum as SAEnum, ForeignKey, String, Text, func
+from sqlalchemy import Date, Enum as SAEnum, ForeignKey, String, Text, func, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, UTCDateTime, utcnow
 from app.models.user import User
+
+class TaskComment(Base):
+    """Comentario con evidencias (todos los usuarios autenticados)."""
+    __tablename__ = "task_comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utcnow, server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id], lazy="selectin")
+    attachments: Mapped[list["TaskAttachment"]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin", order_by="TaskAttachment.id.asc()"
+    )
+
+class TaskAttachment(Base):
+    """Archivo adjunto de un comentario. En disco se guarda con nombre UUID;
+    el original se conserva aquí para la descarga."""
+    __tablename__ = "task_attachments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("task_comments.id"), nullable=False, index=True)
+    stored_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    original_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utcnow, server_default=func.now()
+    )
 
 
 class TaskStatus(str, enum.Enum):
@@ -60,6 +92,11 @@ class Task(Base):
     events: Mapped[list["TaskEvent"]] = relationship(
         cascade="all, delete-orphan", lazy="selectin",
         order_by="TaskEvent.created_at.desc(), TaskEvent.id.desc()",
+    )
+
+    comments: Mapped[list["TaskComment"]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin",
+        order_by="TaskComment.created_at.asc(), TaskComment.id.asc()",
     )
 
     def __repr__(self) -> str:

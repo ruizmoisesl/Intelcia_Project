@@ -72,9 +72,7 @@ def list_tasks(
     limit: int = 50, offset: int = 0,
 ) -> tuple[list[Task], int]:
     conditions = []
-    if requester.role == Role.EMPLOYEE:
-        conditions.append(Task.assignee_id == requester.id)  # solo SUS tareas
-    elif assignee_id is not None:
+    if assignee_id is not None:  # filtro opcional para cualquier usuario ("Mías")
         conditions.append(Task.assignee_id == assignee_id)
     if status is not None:
         conditions.append(Task.status == status)
@@ -93,12 +91,10 @@ def list_tasks(
 
 
 def get_task_for(db: Session, requester: User, task_id: int) -> Task:
-    """Acceso con control: empleado solo a sus tareas."""
+    """La vista se abre para cualquiera; el guardado de updates sigue en update_task."""
     task = db.get(Task, task_id)
     if task is None:
         raise TaskError("Tarea no encontrada", 404)
-    if requester.role == Role.EMPLOYEE and task.assignee_id != requester.id:
-        raise TaskError("No tienes acceso a esta tarea", 403)
     return task
 
 
@@ -107,6 +103,8 @@ def update_task(db: Session, task: Task, *, requester: User, changes: dict) -> T
     unknown = set(changes) - _EDITABLE_FIELDS
     if unknown:
         raise TaskError(f"Campos no editables: {', '.join(sorted(unknown))}")
+
+    touched: list[str] = []
 
     if requester.role == Role.EMPLOYEE:
         if task.assignee_id != requester.id:
@@ -121,14 +119,16 @@ def update_task(db: Session, task: Task, *, requester: User, changes: dict) -> T
                     "Solo puedes avanzar el estado: Pendiente → En proceso → Completada", 403
                 )
 
-    touched: list[str] = []
-
     if "title" in changes:
-        task.title = str(changes["title"]).strip()
-        touched.append("title")
+        new_title = str(changes["title"]).strip()
+        if new_title != task.title:
+            task.title = new_title
+            touched.append("title")
     if "description" in changes:
-        task.description = (changes["description"] or "").strip() or None
-        touched.append("description")
+        new_description = (changes["description"] or "").strip() or None
+        if new_description != task.description:
+            task.description = new_description
+            touched.append("description")
     if "priority" in changes and changes["priority"] != task.priority:
         old = task.priority
         task.priority = changes["priority"]
@@ -159,5 +159,16 @@ def update_task(db: Session, task: Task, *, requester: User, changes: dict) -> T
 
 
 def delete_task(db: Session, task: Task) -> None:
-    db.delete(task)  # los eventos se eliminan en cascada (ORM)
+    from app.services import storage
+
+    stored_names = [
+        attachment.stored_name
+        for comment in task.comments
+        for attachment in comment.attachments
+    ]
+
+    db.delete(task)  # comentarios/adjuntos/eventos en cascada
     db.commit()
+
+    for stored_name in stored_names:
+        storage.remove_file(stored_name)

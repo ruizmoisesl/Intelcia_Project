@@ -11,6 +11,7 @@ from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
 from app.schemas.task import (
     TaskCreateRequest, TaskDetailOut, TaskListOut, TaskOut, TaskPushRequest, TaskUpdateRequest,
+    comment_out,
 )
 from app.schemas.user import UserBrief
 from app.services import audit_service, task_service, task_sync_service
@@ -49,6 +50,7 @@ def _detail_out(task: Task, today: date) -> TaskDetailOut:
          "detail": event.detail, "created_at": event.created_at}
         for event in task.events
     ]
+    detail.comments = [comment_out(comment) for comment in task.comments]
     return detail
 
 
@@ -69,7 +71,7 @@ def create_task(
     return _detail_out(task, dates.today())
 
 
-@router.get("", response_model=TaskListOut, summary="Listar tareas (empleados: solo las suyas)")
+@router.get("", response_model=TaskListOut, summary="Listar tareas (visibles para todo el equipo)")
 def list_tasks(
     status: TaskStatus | None = Query(default=None),
     priority: TaskPriority | None = Query(default=None),

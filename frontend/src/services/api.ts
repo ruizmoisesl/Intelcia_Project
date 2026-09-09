@@ -130,7 +130,7 @@ export class ApiError extends Error {
   }
 }
 
-const API_URL = import.meta.env.API_URL ?? "http://localhost:8000";
+export const API_URL = import.meta.env.API_URL ?? "http://localhost:8000";
 
 interface RequestOptions {
   method?: string;
@@ -392,13 +392,37 @@ export interface Task {
   external: TaskExternal | null;
 }
 
-export interface TaskDetail extends Task { events: TaskEvent[]; }
+export interface TaskAttachment {
+  id: number;
+  original_name: string;
+  content_type: string | null;
+  size_bytes: number;
+  url: string;
+}
+
+export interface TaskComment {
+  id: number;
+  user: UserBrief;
+  content: string | null;
+  attachments: TaskAttachment[];
+  created_at: string;
+}
+
+export interface TaskDetail extends Task {
+  events: TaskEvent[];
+  comments: TaskComment[];
+}
+
 export interface TaskList { total: number; today: string; items: Task[]; }
 
-export function fetchTasks(token: string, params?: { status?: string; priority?: string; page?: number; limit?: number }) {
+export function fetchTasks(
+  token: string,
+  params?: { status?: string; priority?: string; assignee_id?: number; page?: number; limit?: number },
+) {
   const search = new URLSearchParams();
   if (params?.status) search.set("status", params.status);
   if (params?.priority) search.set("priority", params.priority);
+  if (params?.assignee_id) search.set("assignee_id", String(params.assignee_id));
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.page) search.set("offset", String((params.page - 1) * (params.limit ?? 50)));
   const query = search.toString() ? `?${search.toString()}` : "";
@@ -411,6 +435,35 @@ export function fetchTask(token: string, taskId: number) {
 
 export function createTask(token: string, payload: Record<string, unknown>) {
   return request<TaskDetail>("/api/v1/tasks", { method: "POST", token, body: payload });
+}
+
+export async function postFormData<T>(path: string, token: string, form: FormData): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+
+  if (!response.ok) {
+    let detail = `Error ${response.status}`;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (body?.detail) detail = String(body.detail);
+    } catch {
+      /* sin JSON */
+    }
+    throw new ApiError(response.status, detail);
+  }
+
+  return (await response.json()) as T;
+}
+
+export function createComment(token: string, taskId: number, form: FormData) {
+  return postFormData(`/api/v1/tasks/${taskId}/comments`, token, form);
+}
+
+export function deleteComment(token: string, commentId: number) {
+  return request<void>(`/api/v1/comments/${commentId}`, { method: "DELETE", token });
 }
 
 export function updateTask(token: string, taskId: number, payload: Record<string, unknown>) {

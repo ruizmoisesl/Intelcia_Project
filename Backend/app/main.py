@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import audit, auth, changes, day_overrides, schedules, users,tasks
+from app.routers import audit, auth, changes, day_overrides, schedules, users,tasks, task_comments
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -18,6 +18,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.include_router(task_comments.router)
     app.include_router(tasks.router)
     app.include_router(day_overrides.router)
     app.include_router(users.router)

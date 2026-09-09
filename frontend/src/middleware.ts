@@ -18,11 +18,7 @@ export const onRequest = defineMiddleware(async ({ url, cookies, locals, redirec
   const path = url.pathname;
   const isLoginPage = path === "/login";
   const isProtectedPage = path.startsWith("/dashboard");
- const isProtectedApi = path.startsWith("/api/novedades") || path.startsWith("/api/usuarios") || path.startsWith("/api/perfil") || path.startsWith("/api/day-overrides") || path.startsWith("/api/tareas");
-
-  if (!isLoginPage && !isProtectedPage && !isProtectedApi) {
-    return next();
-  }
+ const isProtectedApi = path.startsWith("/api/novedades") || path.startsWith("/api/usuarios") || path.startsWith("/api/perfil") || path.startsWith("/api/day-overrides") || path.startsWith("/api/tareas") || path.startsWith("/archivos");
 
   const token = cookies.get(SESSION_COOKIE)?.value ?? null;
 
@@ -38,6 +34,9 @@ export const onRequest = defineMiddleware(async ({ url, cookies, locals, redirec
   }
 
   if ((isProtectedPage || isProtectedApi) && !locals.user) {
+    if (path.startsWith("/archivos")) {
+      return new Response("No autenticado", { status: 401 });
+    }
     return redirect("/login");
   }
 

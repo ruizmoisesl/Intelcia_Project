@@ -28,6 +28,7 @@ try {
 
 const back = `/dashboard/tareas${Astro.url.searchParams.get("from_status") ? `?status=${Astro.url.searchParams.get("from_status")}` : ""}`;
 const next = `/dashboard/tareas/${task.id}`;
+const taskComments: any[] = Array.isArray((task as any).comments) ? (task as any).comments : [];
 
 const STATUS_ACTION_LABEL: Record<string, string> = {
   PENDING: "Reabrir", IN_PROGRESS: "Iniciar", DONE: "Completar",
@@ -43,6 +44,8 @@ const EVENT_LABELS: Record<string, string> = {
   CREATED: "Tarea creada", ASSIGNED: "Asignación", STATUS_CHANGED: "Cambio de estado",
   PRIORITY_CHANGED: "Prioridad", DUE_CHANGED: "Fecha límite", UPDATED: "Actualización",
   PUSHED: "Enviada a Jira/Trello",
+  COMMENTED: "Comentario", 
+  COMMENT_REMOVED: "Comentario eliminado",
 };
 
 const inputClass =
@@ -122,6 +125,90 @@ const inputClass =
           )}
         </section>
 
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Comentarios y evidencias ({taskComments.length})
+          </h2>
+
+          {taskComments.length === 0 ? (
+            <p class="mt-3 text-sm text-slate-400">
+              Sin comentarios todavía. Registra aquí los avances con fotos o archivos.
+            </p>
+          ) : (
+            <ul class="mt-4 space-y-4">
+              {taskComments.map((comment: any) => (
+                <li class="rounded-lg border border-slate-100 p-3 dark:border-slate-800">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-sm font-medium text-slate-800 dark:text-slate-200">{comment.user.name}</span>
+                    <span class="text-[11px] tabular-nums text-slate-400">
+                      {comment.created_at.slice(0, 10)} · {comment.created_at.slice(11, 16)} UTC
+                    </span>
+                  </div>
+                  {comment.content && (
+                    <p class="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{comment.content}</p>
+                  )}
+                  {comment.attachments.length > 0 && (
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                      {comment.attachments.map((att: any) =>
+                        att.content_type?.startsWith("image/") ? (
+                          <a href={att.url} target="_blank" rel="noopener" title={att.original_name}>
+                            <img
+                              src={att.url}
+                              alt={att.original_name}
+                              class="h-24 rounded-lg border border-slate-200 object-cover dark:border-slate-700"
+                              loading="lazy"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            href={att.url}
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            title={att.original_name}
+                          >
+                            📎 {att.original_name} · {Math.max(1, Math.round(att.size_bytes / 1024))} KB ↗
+                          </a>
+                        )
+                      )}
+                    </div>
+                  )}
+                  {(comment.user.id === user.id || isSupervisor) && (
+                    <form method="POST" action="/api/tareas/comentario-delete" class="mt-2">
+                      <input type="hidden" name="comment_id" value={comment.id} />
+                      <input type="hidden" name="next" value={next} />
+                      <button type="submit" class="text-[11px] font-medium text-red-500 hover:underline dark:text-red-400">
+                        Eliminar
+                      </button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <form
+            method="POST"
+            action="/api/tareas/comentario"
+            enctype="multipart/form-data"
+            class="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
+          >
+            <input type="hidden" name="task_id" value={task.id} />
+            <input type="hidden" name="next" value={next} />
+            <textarea
+              name="content" rows="2" maxlength="5000"
+              placeholder="Registra el avance… (puedes adjuntar fotos o archivos)"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            ></textarea>
+            <input
+              type="file" name="files" multiple
+              accept="image/*,.pdf,.txt,.csv,.xlsx,.docx,.pptx,.zip"
+              class="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 dark:file:bg-slate-800 dark:file:text-slate-200"
+            />
+            <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+              Publicar comentario
+            </button>
+          </form>
+        </section>
+
         {isSupervisor && (
           <details class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <summary class="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
@@ -183,7 +270,7 @@ const inputClass =
           <ol class="mt-4 space-y-4 border-l border-slate-200 pl-4 dark:border-slate-700">
             {task.events.map((event) => (
               <li class="relative">
-                <span class="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-indigo-500"></span>
+                <span class="absolute -left-5.25 top-1.5 h-2 w-2 rounded-full bg-indigo-500"></span>
                 <p class="text-sm text-slate-800 dark:text-slate-200">{EVENT_LABELS[event.event] ?? event.event}</p>
                 {event.detail && <p class="text-xs text-slate-500 dark:text-slate-400">{event.detail}</p>}
                 <p class="text-[11px] text-slate-400">
