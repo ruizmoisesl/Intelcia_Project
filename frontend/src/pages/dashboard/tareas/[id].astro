@@ -1,0 +1,228 @@
+---
+import DashboardLayout from "../../../layouts/DashboardLayout.astro";
+import FlashMessage from "../../../components/FlashMessage.astro";
+import TaskPriorityBadge from "../../../components/TaskPriorityBadge.astro";
+import TaskStatusBadge from "../../../components/TaskStatusBadge.astro";
+import { formatShortDate } from "../../../lib/format";
+import { fetchTask, fetchTeamWeek, type TaskDetail, type UserBrief } from "../../../services/api";
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect("/login");
+const token = Astro.locals.token ?? "";
+const isSupervisor = user.role === "SUPERVISOR" || user.role === "ADMIN";
+
+const taskId = Number(Astro.params.id);
+if (!Number.isInteger(taskId) || taskId < 1) return Astro.redirect("/dashboard/tareas");
+
+let task: TaskDetail;
+let assignees: UserBrief[] = [];
+try {
+  task = await fetchTask(token, taskId);
+  if (isSupervisor) {
+    const team = await fetchTeamWeek(token);
+    assignees = team.members.map((member) => member.user);
+  }
+} catch {
+  return Astro.redirect("/dashboard/tareas?error=Tarea%20no%20encontrada%20o%20sin%20acceso");
+}
+
+const back = `/dashboard/tareas${Astro.url.searchParams.get("from_status") ? `?status=${Astro.url.searchParams.get("from_status")}` : ""}`;
+const next = `/dashboard/tareas/${task.id}`;
+
+const STATUS_ACTION_LABEL: Record<string, string> = {
+  PENDING: "Reabrir", IN_PROGRESS: "Iniciar", DONE: "Completar",
+};
+function nextStatuses(): string[] {
+  const canAct = isSupervisor || task.assignee?.id === user.id;
+  if (task.status === "PENDING") return canAct ? ["IN_PROGRESS", "DONE"] : [];
+  if (task.status === "IN_PROGRESS") return canAct ? ["DONE"] : [];
+  return isSupervisor ? ["PENDING"] : [];
+}
+
+const EVENT_LABELS: Record<string, string> = {
+  CREATED: "Tarea creada", ASSIGNED: "Asignación", STATUS_CHANGED: "Cambio de estado",
+  PRIORITY_CHANGED: "Prioridad", DUE_CHANGED: "Fecha límite", UPDATED: "Actualización",
+  PUSHED: "Enviada a Jira/Trello",
+};
+
+const inputClass =
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+---
+
+<DashboardLayout title={`Tarea ${task.id}`} user={user}>
+  <div class="space-y-6">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <a href={back} class="text-xs font-medium text-slate-500 hover:underline dark:text-slate-400">← Volver a tareas</a>
+        <h1 class="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">{task.title}</h1>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <TaskStatusBadge status={task.status} />
+          <TaskPriorityBadge priority={task.priority} />
+          {task.is_overdue && (
+            <span class="rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300">
+              Vencida
+            </span>
+          )}
+          {task.external && (
+            <a href={task.external.url} target="_blank" rel="noopener"
+               class="rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-medium text-indigo-700 hover:underline dark:bg-indigo-500/15 dark:text-indigo-300">
+              {task.external.system}: {task.external.id} ↗
+            </a>
+          )}
+        </div>
+      </div>
+      {nextStatuses().length > 0 && (
+        <div class="flex flex-wrap gap-1.5">
+          {nextStatuses().map((next) => (
+            <form method="POST" action="/api/tareas/update">
+              <input type="hidden" name="task_id" value={task.id} />
+              <input type="hidden" name="status" value={next} />
+              <input type="hidden" name="next" value={next} />
+              <button class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500">
+                {STATUS_ACTION_LABEL[next]}
+              </button>
+            </form>
+          ))}
+        </div>
+      )}
+    </div>
+
+    <FlashMessage />
+
+    <div class="grid gap-6 lg:grid-cols-3">
+      <div class="space-y-6 lg:col-span-2">
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Detalles</h2>
+          <dl class="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            <div class="flex justify-between gap-2 sm:block">
+              <dt class="text-xs text-slate-500 dark:text-slate-400">Asignada a</dt>
+              <dd class="font-medium text-slate-800 dark:text-slate-200">{task.assignee?.name ?? "Sin asignar"}</dd>
+            </div>
+            <div class="flex justify-between gap-2 sm:block">
+              <dt class="text-xs text-slate-500 dark:text-slate-400">Creada por</dt>
+              <dd class="font-medium text-slate-800 dark:text-slate-200">{task.created_by.name}</dd>
+            </div>
+            <div class="flex justify-between gap-2 sm:block">
+              <dt class="text-xs text-slate-500 dark:text-slate-400">Fecha límite</dt>
+              <dd class="font-medium tabular-nums text-slate-800 dark:text-slate-200">
+                {task.due_date ? formatShortDate(task.due_date) : "—"}
+              </dd>
+            </div>
+            <div class="flex justify-between gap-2 sm:block">
+              <dt class="text-xs text-slate-500 dark:text-slate-400">Completada</dt>
+              <dd class="font-medium tabular-nums text-slate-800 dark:text-slate-200">
+                {task.completed_at ? `${task.completed_at.slice(0, 10)} ${task.completed_at.slice(11, 16)} UTC` : "—"}
+              </dd>
+            </div>
+          </dl>
+          {task.description && (
+            <div class="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <p class="whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">{task.description}</p>
+            </div>
+          )}
+        </section>
+
+        {isSupervisor && (
+          <details class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <summary class="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
+              Editar tarea
+            </summary>
+            <form method="POST" action="/api/tareas/update" class="grid gap-4 border-t border-slate-100 p-5 sm:grid-cols-2 dark:border-slate-800">
+              <input type="hidden" name="task_id" value={task.id} />
+              <input type="hidden" name="next" value={next} />
+              <div class="sm:col-span-2">
+                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Título</label>
+                <input name="title" value={task.title} minlength="3" class={inputClass} />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Descripción</label>
+                <textarea name="description" rows="3" class={inputClass}>{task.description ?? ""}</textarea>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Prioridad</label>
+                <select name="priority" class={inputClass}>
+                  {[["LOW", "Baja"], ["MEDIUM", "Media"], ["HIGH", "Alta"], ["URGENT", "Urgente"]].map(([value, label]) => (
+                    <option value={value} selected={value === task.priority}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Estado</label>
+                <select name="status" class={inputClass}>
+                  {[["PENDING", "Pendiente"], ["IN_PROGRESS", "En proceso"], ["DONE", "Completada"]].map(([value, label]) => (
+                    <option value={value} selected={value === task.status}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Vence</label>
+                <input type="date" name="due_date" value={task.due_date ?? ""} class={inputClass} />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Asignar a</label>
+                <select name="assignee_id" class={inputClass}>
+                  <option value="" selected={task.assignee === null}>Sin asignar</option>
+                  {assignees.map((member) => (
+                    <option value={member.id} selected={member.id === task.assignee?.id}>{member.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div class="sm:col-span-2 flex flex-wrap gap-2">
+                <button class="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500">
+                  Guardar cambios
+                </button>
+              </div>
+            </form>
+          </details>
+        )}
+      </div>
+
+      <div class="space-y-6">
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Historial</h2>
+          <ol class="mt-4 space-y-4 border-l border-slate-200 pl-4 dark:border-slate-700">
+            {task.events.map((event) => (
+              <li class="relative">
+                <span class="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-indigo-500"></span>
+                <p class="text-sm text-slate-800 dark:text-slate-200">{EVENT_LABELS[event.event] ?? event.event}</p>
+                {event.detail && <p class="text-xs text-slate-500 dark:text-slate-400">{event.detail}</p>}
+                <p class="text-[11px] text-slate-400">
+                  {event.user.name} · {event.created_at.slice(0, 10)} {event.created_at.slice(11, 16)} UTC
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {isSupervisor && (
+          <section class="space-y-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Integraciones
+            </h2>
+            <p class="text-xs text-slate-400">
+              Crea el issue/tarjeta desde esta tarea y enlázalo (requiere credenciales en .env).
+            </p>
+            <div class="flex flex-wrap gap-2">
+              {["jira", "trello"].map((target) => (
+                <form method="POST" action="/api/tareas/push">
+                  <input type="hidden" name="task_id" value={task.id} />
+                  <input type="hidden" name="target" value={target} />
+                  <input type="hidden" name="next" value={next} />
+                  <button class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                    Enviar a {target === "jira" ? "Jira" : "Trello"}
+                  </button>
+                </form>
+              ))}
+            </div>
+            <form method="POST" action="/api/tareas/delete" class="pt-2">
+              <input type="hidden" name="task_id" value={task.id} />
+              <button class="text-xs font-medium text-red-600 hover:underline dark:text-red-400">
+                Eliminar tarea
+              </button>
+            </form>
+          </section>
+        )}
+      </div>
+    </div>
+  </div>
+</DashboardLayout>

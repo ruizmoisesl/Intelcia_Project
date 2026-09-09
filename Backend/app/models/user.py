@@ -5,6 +5,7 @@ from sqlalchemy import Boolean, DateTime, Enum as SAEnum, String, func, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.core.database import Base, UTCDateTime, utcnow
 
 
 class Role(str, enum.Enum):
@@ -46,10 +47,11 @@ class User(Base):
     rotation_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        UTCDateTime, nullable=False, default=utcnow, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        UTCDateTime, nullable=False, default=utcnow, onupdate=utcnow,
+        server_default=func.now(),
     )
 
     def __repr__(self) -> str:

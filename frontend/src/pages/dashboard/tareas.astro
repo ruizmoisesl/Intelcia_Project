@@ -1,0 +1,202 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+import FlashMessage from "../../components/FlashMessage.astro";
+import TaskPriorityBadge from "../../components/TaskPriorityBadge.astro";
+import TaskStatusBadge from "../../components/TaskStatusBadge.astro";
+import { formatShortDate } from "../../lib/format";
+import { fetchTasks, fetchTeamWeek, type Task, type UserBrief } from "../../services/api";
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect("/login");
+const token = Astro.locals.token ?? "";
+const isSupervisor = user.role === "SUPERVISOR" || user.role === "ADMIN";
+
+const statusParam = Astro.url.searchParams.get("status") ?? "";
+
+let tasks: Task[] = [];
+let today = "";
+let total = 0;
+let assignees: UserBrief[] = [];
+try {
+  const result = await fetchTasks(token, { limit: 150 });
+  tasks = result.items;
+  today = result.today;
+  total = result.total;
+  if (isSupervisor) {
+    const team = await fetchTeamWeek(token); // miembros activos para el select de asignación
+    assignees = team.members.map((member) => member.user);
+  }
+} catch {
+  return Astro.redirect("/login");
+}
+
+const COLUMNS = [
+  { status: "PENDING", title: "Pendientes" },
+  { status: "IN_PROGRESS", title: "En proceso" },
+  { status: "DONE", title: "Completadas" },
+];
+const visible = statusParam ? tasks.filter((task) => task.status === statusParam) : tasks;
+const byStatus = (status: string) => visible.filter((task) => task.status === status);
+
+const STATUS_FILTERS = [
+  { value: "", label: "Todas" },
+  { value: "PENDING", label: "Pendientes" },
+  { value: "IN_PROGRESS", label: "En proceso" },
+  { value: "DONE", label: "Completadas" },
+];
+
+const STATUS_ACTION_LABEL: Record<string, string> = {
+  PENDING: "Reabrir", IN_PROGRESS: "Iniciar", DONE: "Completar",
+};
+
+/** Acciones de estado: el asignado avanza; la supervisión también reabre. */
+function nextStatuses(task: Task): string[] {
+  const canAct = isSupervisor || task.assignee?.id === user.id;
+  if (task.status === "PENDING") return canAct ? ["IN_PROGRESS", "DONE"] : [];
+  if (task.status === "IN_PROGRESS") return canAct ? ["DONE"] : [];
+  return isSupervisor ? ["PENDING"] : [];
+}
+
+const inputClass =
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+const actionBtn =
+  "rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700";
+---
+
+<DashboardLayout title="Tareas" user={user}>
+  <div class="space-y-6">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-900 dark:text-slate-100">Tareas</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          {isSupervisor ? `${total} tareas del equipo` : `${total} tareas asignadas a ti`}
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        {STATUS_FILTERS.map((filter) => (
+          <a
+            href={filter.value ? `/dashboard/tareas?status=${filter.value}` : "/dashboard/tareas"}
+            class:list={[
+              "rounded-full px-3 py-1 text-xs font-medium",
+              statusParam === filter.value
+                ? "bg-indigo-600 text-white"
+                : "bg-white text-slate-600 ring-1 ring-inset ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700",
+            ]}
+          >
+            {filter.label}
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <FlashMessage />
+
+    {isSupervisor && (
+      <details class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <summary class="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
+          + Crear tarea
+        </summary>
+        <form method="POST" action="/api/tareas" class="grid gap-4 border-t border-slate-100 p-5 sm:grid-cols-2 dark:border-slate-800">
+          <div class="sm:col-span-2">
+            <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Título</label>
+            <input name="title" required minlength="3" maxlength="150" class={inputClass} placeholder="¿Qué hay que hacer?" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Descripción (opcional)</label>
+            <textarea name="description" rows="2" maxlength="5000" class={inputClass}></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Prioridad</label>
+              <select name="priority" class={inputClass}>
+                <option value="LOW">Baja</option>
+                <option value="MEDIUM" selected>Media</option>
+                <option value="HIGH">Alta</option>
+                <option value="URGENT">Urgente</option>
+              </select>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Vence (opcional)</label>
+              <input type="date" name="due_date" min={today} class={inputClass} />
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Asignar a</label>
+            <select name="assignee_id" class={inputClass}>
+              <option value="">Sin asignar</option>
+              {assignees.map((member) => <option value={member.id}>{member.name}</option>)}
+            </select>
+          </div>
+          <div class="sm:col-span-2">
+            <button class="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500">
+              Crear tarea
+            </button>
+          </div>
+        </form>
+      </details>
+    )}
+
+    <div class="grid items-start gap-4 lg:grid-cols-3">
+      {COLUMNS.map((column) => (
+        <section class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+          <header class="flex items-center justify-between px-1 pb-2">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {column.title}
+            </h2>
+            <span class="text-xs tabular-nums text-slate-400">{byStatus(column.status).length}</span>
+          </header>
+          <div class="space-y-3">
+            {byStatus(column.status).length === 0 ? (
+              <p class="rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400 dark:border-slate-700">
+                Sin tareas
+              </p>
+            ) : (
+              byStatus(column.status).map((task) => (
+                <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div class="flex items-start justify-between gap-2">
+                    <a href={`/dashboard/tareas/${task.id}`} class="font-medium text-slate-900 hover:underline dark:text-slate-100">
+                      {task.title}
+                    </a>
+                    <TaskPriorityBadge priority={task.priority} />
+                  </div>
+                  {task.description && (
+                    <p class="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{task.description}</p>
+                  )}
+                  <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                    {task.assignee
+                      ? <span class="font-medium text-slate-700 dark:text-slate-300">{task.assignee.name}</span>
+                      : <span class="italic">sin asignar</span>}
+                    {task.due_date && (
+                      <span class:list={["tabular-nums", task.is_overdue && "font-medium text-red-600 dark:text-red-400"]}>
+                        vence {formatShortDate(task.due_date)}{task.is_overdue && " · vencida"}
+                      </span>
+                    )}
+                    {task.external && (
+                      <a href={task.external.url} target="_blank" rel="noopener"
+                         class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                        {task.external.system} ↗
+                      </a>
+                    )}
+                  </div>
+                  {nextStatuses(task).length > 0 && (
+                    <div class="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
+                      {nextStatuses(task).map((next) => (
+                        <form method="POST" action="/api/tareas/update">
+                          <input type="hidden" name="task_id" value={task.id} />
+                          <input type="hidden" name="status" value={next} />
+                          <input type="hidden" name="next" value="/dashboard/tareas" />
+                          <button class={actionBtn}>{STATUS_ACTION_LABEL[next]}</button>
+                        </form>
+                      ))}
+                      <a href={`/dashboard/tareas/${task.id}`} class={actionBtn}>Detalle</a>
+                    </div>
+                  )}
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
+  </div>
+</DashboardLayout>

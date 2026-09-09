@@ -32,5 +32,16 @@ class Settings(BaseSettings):
     # Zona horaria del negocio: «hoy» se calcula aquí, no con la TZ del servidor.
     BUSINESS_TIMEZONE: str = "America/Bogota"
 
+        # ── Jira (Cloud): envío de tareas ──
+    JIRA_BASE_URL: str | None = None      # https://tuempresa.atlassian.net
+    JIRA_EMAIL: str | None = None
+    JIRA_API_TOKEN: str | None = None     # Atlassian → Cuenta → Seguridad → Token de API
+    JIRA_PROJECT_KEY: str | None = None   # el proyecto debe tener tipo de issue «Task»
+
+    # ── Trello: envío de tareas ──
+    TRELLO_KEY: str | None = None
+    TRELLO_TOKEN: str | None = None
+    TRELLO_LIST_ID: str | None = None     # ID de la lista destino
+
 
 settings = Settings()

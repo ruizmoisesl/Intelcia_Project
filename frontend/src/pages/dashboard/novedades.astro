@@ -5,15 +5,19 @@ import FlashMessage from "../../components/FlashMessage.astro";
 import NovedadForm from "../../components/NovedadForm.astro";
 import PendingChangeCard from "../../components/PendingChangeCard.astro";
 import ShiftBadge from "../../components/ShiftBadge.astro";
+import TeamSwapGrid from "../../components/TeamSwapGrid.astro";
+import WeekNav from "../../components/WeekNav.astro";
 import { addDaysIso, formatRange } from "../../lib/format";
 import {
   fetchChanges,
   fetchMyChanges,
   fetchPendingChanges,
   fetchShifts,
+  fetchTeamWeek,
   fetchTodaySchedule,
   type ScheduleChange,
   type ShiftDefinition,
+  type TeamWeek,
   type TodaySchedule,
 } from "../../services/api";
 
@@ -22,14 +26,20 @@ if (!user) return Astro.redirect("/login");
 const token = Astro.locals.token ?? "";
 const isApprover = user.role === "SUPERVISOR" || user.role === "ADMIN";
 
+const weekParam = Astro.url.searchParams.get("week");
+const requestedWeek = weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam) ? weekParam : undefined;
+
 let shifts: ShiftDefinition[] = [];
 let myChanges: ScheduleChange[] = [];
 let pending: ScheduleChange[] = [];
 let history: ScheduleChange[] = [];
-
+let todayInfo: TodaySchedule | null = null;
+let team: TeamWeek;
 try {
   shifts = await fetchShifts(token);
   myChanges = await fetchMyChanges(token);
+  todayInfo = await fetchTodaySchedule(token);
+  team = await fetchTeamWeek(token, requestedWeek);
   if (isApprover) {
     pending = await fetchPendingChanges(token);
     history = (await fetchChanges(token)).filter((change) => change.status !== "PENDING");
@@ -37,11 +47,6 @@ try {
 } catch {
   return Astro.redirect("/login");
 }
-
-let todayInfo: TodaySchedule | null = null;
-try {
-  todayInfo = await fetchTodaySchedule(token);
-} catch { return Astro.redirect("/login"); }
 ---
 
 <DashboardLayout title="Novedades" user={user}>
@@ -56,19 +61,20 @@ try {
           </span>
         </h1>
         <p class="mt-2 text-sm text-gray-400">
-          Solicita un cambio de turno para una semana. Un supervisor o administrador debe aprobarlo.
+          Revisa los horarios del equipo, elige con quién intercambiar y solicita el cambio de turno.
         </p>
       </div>
       <div class="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/5">
-        <span class="text-xs text-gray-400">Estado</span>
-        <span class="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
-          <span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-          Activo
-        </span>
+        <span class="text-xs text-gray-400">Semana</span>
+        <span class="text-xs text-rose-400 font-medium">{team.week_start}</span>
       </div>
     </div>
 
     <FlashMessage />
+    
+    <div class="bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl p-4 hover:bg-white/8 transition-all duration-300">
+      <WeekNav basePath="/dashboard/novedades" weekStart={team.week_start} today={todayInfo?.date ?? null} />
+    </div>
 
     {/* Formulario de solicitud - estilo Nexus */}
     {user.role !== "ADMIN" && (
@@ -83,9 +89,32 @@ try {
             Solicitar cambio de turno
           </h2>
         </div>
-        <NovedadForm shifts={shifts} today={todayInfo?.date ?? null} />
+        <NovedadForm
+          shifts={shifts}
+          today={todayInfo?.date ?? null}
+          defaultWeek={team.week_start}
+          next={`/dashboard/novedades?week=${team.week_start}`}
+        />
       </section>
     )}
+
+    {/* Team Swap Grid - estilo Nexus */}
+    <section class="space-y-4">
+      <div class="flex items-center gap-2.5">
+        <div class="p-1.5 bg-rose-500/10 rounded-lg">
+          <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+        </div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          Horarios del equipo
+        </h2>
+        <span class="ml-auto px-2.5 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-400 rounded-full">
+          {team.members.length} empleados
+        </span>
+      </div>
+      <TeamSwapGrid team={team} currentUserId={user.id} />
+    </section>
 
     {/* Pendientes de revisión - estilo Nexus */}
     {isApprover && (

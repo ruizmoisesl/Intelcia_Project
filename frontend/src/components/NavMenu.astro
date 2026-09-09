@@ -15,6 +15,7 @@ const activeItems: NavItem[] = [
   { href: "/dashboard", label: "Inicio", icon: "home" },
   { href: "/dashboard/horarios", label: "Horarios", icon: "calendar" },
   { href: "/dashboard/novedades", label: "Novedades", icon: "bell" },
+  { href: "/dashboard/tareas", label: "Tareas", icon: "clipboard" },
 ];
 
 // Personal: solo supervisores y administradores.
@@ -28,7 +29,6 @@ if (role === "ADMIN") {
 }
 
 const upcomingItems: { label: string; icon: IconName }[] = [
-  { label: "Tareas", icon: "clipboard" },
   { label: "Tickets", icon: "ticket" },
   { label: "Documentos", icon: "folder" },
   { label: "Reportes", icon: "chart" },
@@ -68,7 +68,7 @@ const upcomingItems: { label: string; icon: IconName }[] = [
         {/* Badge de novedades (ejemplo) */}
         {item.label === "Novedades" && (
           <span class="px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/20 text-rose-400 rounded-full">
-            3
+            
           </span>
         )}
       </a>

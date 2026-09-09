@@ -24,7 +24,7 @@ const { shifts } = Astro.props;
     </span>
   </div>
 
-  <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+  <ul class="grid grid-cols-1 gap-2 text-slate-600 dark:text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
     {shifts.map((shift) => {
       const style = shiftStyle(shift.color);
       return (

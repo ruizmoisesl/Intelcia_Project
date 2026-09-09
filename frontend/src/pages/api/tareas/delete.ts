@@ -1,0 +1,1 @@
+// delete.ts — supervisor/admin: task_id → deleteTask → /dashboard/tareas?task_deleted=1

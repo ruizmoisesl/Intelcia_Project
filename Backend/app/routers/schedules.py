@@ -6,6 +6,10 @@ Toda la lógica vive en los servicios; aquí solo se orquesta y serializa.
 """
 from datetime import date
 from app.core import dates
+from datetime import timedelta
+from app.services import day_override_service
+from app.schemas.schedule import day_override_out
+
 
 from app.schemas.schedule import (
     # ... (imports existentes) ...
@@ -71,7 +75,8 @@ def my_schedule_for_today(
 ) -> TodayScheduleOut:
     today = dates.today()
     effective = rotation_service.get_effective_shift(db, current_user, today)
-    day = schedule_service.get_schedule_for_date(effective.shift_id, today)
+    day = day_override_service.resolve_day(db, current_user.id, today, effective.shift_id)
+    override = day_override_service.get_override(db, current_user.id, today)
     weekday = schedule_service.weekday_of(today)
     festivo = schedule_service.is_holiday(today)
 
@@ -83,6 +88,8 @@ def my_schedule_for_today(
         end=hhmm(day.end if day else None),
         is_holiday=festivo,
         holiday_name=schedule_service.holiday_name(today) if festivo else None,
+        is_custom=override is not None,
+        custom_shift=shift_info(override.shift) if override and override.shift else None,
         shift=shift_info(effective.shift_id),
         source=effective.source,
     )
@@ -90,16 +97,14 @@ def my_schedule_for_today(
 
 @router.get("/week", response_model=WeekScheduleOut, summary="Semana laboral del usuario")
 def my_week_schedule(
-    week_start: date | None = Query(
-        default=None,
-        description="Cualquier fecha de la semana (se normaliza a su lunes). ISO: YYYY-MM-DD.",
-    ),
+    week_start: date | None = Query(default=None, description="Cualquier fecha de la semana (se normaliza a su lunes). ISO: YYYY-MM-DD."),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> WeekScheduleOut:
-    monday = schedule_service.to_monday(week_start or date.today())
+    monday = schedule_service.to_monday(week_start or dates.today())
     effective = rotation_service.get_effective_shift(db, current_user, monday)
     week = schedule_service.get_week_schedule(effective.shift_id, monday)
+    week = day_override_service.apply_day_overrides(db, current_user.id, week)
 
     return WeekScheduleOut(
         week_start=week.week_start,
@@ -108,7 +113,6 @@ def my_week_schedule(
         source=effective.source,
         days=[day_out(entry) for entry in week.days],
     )
-
 
 @router.get(
     "/me/rotation",
@@ -133,29 +137,30 @@ def my_rotation_preview(
     )
 
 
-@router.get(
-    "/team/week",
-    response_model=TeamWeekOut,
-    summary="Semana de todo el personal (supervisor/admin)",
-)
+@router.get("/team/week", response_model=TeamWeekOut, summary="Semana de todo el personal")
 def team_week(
     week_start: date | None = Query(default=None),
-    supervisor: User = Depends(require_supervisor),
+    current_user: User = Depends(get_current_user),  # antes require_supervisor
     db: Session = Depends(get_db),
 ) -> TeamWeekOut:
+    """Semana efectiva de todo el personal (rotación, cambios aprobados y
+    horarios personalizados por día). Abierta a usuarios autenticados para
+    que los empleados vean con quién pueden intercambiar turnos al crear
+    una novedad; las acciones de gestión siguen en /dashboard/personal."""
     monday = schedule_service.to_monday(week_start or dates.today())
+    week_end = monday + timedelta(days=6)
 
     employees = rotation_service.get_rotating_employees(db)
     staff = db.scalars(
-        select(User)
-        .where(User.role == Role.SUPERVISOR, User.is_active.is_(True))
-        .order_by(User.name)
+        select(User).where(User.role == Role.SUPERVISOR, User.is_active.is_(True)).order_by(User.name)
     ).all()
 
     members: list[TeamMemberOut] = []
     for user in [*employees, *staff]:
         effective = rotation_service.get_effective_shift(db, user, monday)
         week = schedule_service.get_week_schedule(effective.shift_id, monday)
+        week = day_override_service.apply_day_overrides(db, user.id, week)
+        overrides = day_override_service.get_overrides_for_range(db, user.id, monday, week_end)
         members.append(
             TeamMemberOut(
                 user=UserBrief.model_validate(user),
@@ -163,6 +168,7 @@ def team_week(
                 source=effective.source,
                 override_change_id=effective.change_id,
                 days=[day_out(entry) for entry in week.days],
+                day_overrides=[day_override_out(override) for override in overrides.values()],
             )
         )
     return TeamWeekOut(week_start=monday, today=dates.today(), members=members)

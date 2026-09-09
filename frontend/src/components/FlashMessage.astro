@@ -10,6 +10,12 @@ if (params.has("user_created")) messages.push({ type: "ok", text: "Usuario cread
 if (params.has("user_updated")) messages.push({ type: "ok", text: "Usuario actualizado." });
 if (params.has("user_deactivated")) messages.push({ type: "ok", text: "Usuario desactivado." });
 if (params.has("password_changed")) messages.push({ type: "ok", text: "Contraseña actualizada correctamente." });
+if (params.has("day_override")) messages.push({ type: "ok", text: "Horario personalizado aplicado." });
+if (params.has("day_override_removed")) messages.push({ type: "ok", text: "Personalización eliminada: vuelve el horario automático." });
+if (params.has("task_created")) messages.push({ type: "ok", text: "Tarea creada." });
+if (params.has("task_updated")) messages.push({ type: "ok", text: "Tarea actualizada." });
+if (params.has("task_deleted")) messages.push({ type: "ok", text: "Tarea eliminada." });
+if (params.has("task_pushed")) messages.push({ type: "ok", text: "Tarea enviada y enlazada." });
 
 
 const error = params.get("error");
@@ -21,18 +27,11 @@ if (error) messages.push({ type: "error", text: error });
     {messages.map((message) => (
       <div
         role={message.type === "error" ? "alert" : "status"}
-        class={`
-          relative overflow-hidden
-          rounded-xl px-5 py-4 
-          text-sm font-medium
-          border backdrop-blur-sm
-          transition-all duration-300
-          animate-slideDown
-          ${message.type === "error"
-            ? "bg-red-500/10 border-red-500/20 text-red-400"
-            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-          }
-        `}
+        class={`rounded-lg border px-4 py-3 text-sm dark:bg-opacity-10 ${
+          message.type === "error"
+            ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+            : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+        }`}
       >
         {/* Barra lateral de color */}
         <div class={`

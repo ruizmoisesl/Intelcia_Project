@@ -15,14 +15,7 @@ const next = addDaysIso(weekStart, 7);
 const isCurrent = today !== null && weekStart === mondayOfIso(today);
 
 const linkClass = `
-  group inline-flex items-center gap-2 
-  px-4 py-2.5 
-  bg-white/5 border border-white/10 
-  rounded-xl 
-  text-sm font-medium text-gray-400 
-  hover:bg-white/10 hover:border-rose-500/20 hover:text-white 
-  transition-all duration-300
-  hover:-translate-y-0.5
+  inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800
 `;
 ---
 
@@ -41,7 +34,7 @@ const linkClass = `
     ) : (
       <a
         href={basePath}
-        class="group inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-medium text-gray-400 hover:bg-white/10 hover:border-rose-500/20 hover:text-white transition-all duration-300 hover:-translate-y-0.5"
+        class={linkClass}
       >
         <span class="inline-block w-1.5 h-1.5 bg-gray-600 rounded-full group-hover:bg-rose-400 transition-colors duration-300"></span>
         Semana actual

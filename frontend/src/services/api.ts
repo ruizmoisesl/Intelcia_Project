@@ -41,6 +41,7 @@ export interface ShiftDefinition {
 }
 
 export interface DaySchedule {
+source: unknown;
   date: string;
   weekday: Weekday;
   day_name: string;
@@ -48,6 +49,20 @@ export interface DaySchedule {
   end: string | null;
   is_holiday: boolean;
   holiday_name: string | null;
+  is_custom: boolean;
+  custom_shift: ShiftInfo | null;
+}
+
+export interface DayOverrideEntry {
+  id: number;
+  user: UserBrief;
+  date: string;
+  shift: ShiftInfo | null;
+  start: string | null;
+  end: string | null;
+  reason: string | null;
+  created_by: UserBrief;
+  created_at: string;
 }
 
 export interface WeekSchedule {
@@ -82,6 +97,7 @@ export interface TeamMember {
   source: ShiftSource;
   override_change_id: number | null;
   days: DaySchedule[];
+  day_overrides: DayOverrideEntry[];
 }
 
 export interface TeamWeek {
@@ -330,4 +346,81 @@ export function fetchAuditLogs(
   if (params?.page) search.set("offset", String((params.page - 1) * (params.limit ?? 50)));
   const query = search.toString() ? `?${search.toString()}` : "";
   return request<AuditList>(`/api/v1/audit${query}`, { token });
+}
+
+
+// ---------- Horarios personalizados por día (supervisor/admin) ----------
+
+export function createDayOverride(
+  token: string,
+  payload: { user_id: number; date: string; shift?: string; start?: string; end?: string; reason?: string },
+) {
+  return request<DayOverrideEntry>("/api/v1/day-overrides", { method: "POST", token, body: payload });
+}
+
+export function deleteDayOverride(token: string, overrideId: number) {
+  return request<void>(`/api/v1/day-overrides/${overrideId}`, { method: "DELETE", token });
+}
+
+
+export type TaskStatus = "PENDING" | "IN_PROGRESS" | "DONE";
+export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+
+export interface TaskExternal { system: string; id: string; url: string; }
+
+export interface TaskEvent {
+  id: number;
+  user: UserBrief;
+  event: string;
+  detail: string | null;
+  created_at: string;
+}
+
+export interface Task {
+  id: number;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assignee: UserBrief | null;
+  created_by: UserBrief;
+  due_date: string | null;
+  is_overdue: boolean;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  external: TaskExternal | null;
+}
+
+export interface TaskDetail extends Task { events: TaskEvent[]; }
+export interface TaskList { total: number; today: string; items: Task[]; }
+
+export function fetchTasks(token: string, params?: { status?: string; priority?: string; page?: number; limit?: number }) {
+  const search = new URLSearchParams();
+  if (params?.status) search.set("status", params.status);
+  if (params?.priority) search.set("priority", params.priority);
+  if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.page) search.set("offset", String((params.page - 1) * (params.limit ?? 50)));
+  const query = search.toString() ? `?${search.toString()}` : "";
+  return request<TaskList>(`/api/v1/tasks${query}`, { token });
+}
+
+export function fetchTask(token: string, taskId: number) {
+  return request<TaskDetail>(`/api/v1/tasks/${taskId}`, { token });
+}
+
+export function createTask(token: string, payload: Record<string, unknown>) {
+  return request<TaskDetail>("/api/v1/tasks", { method: "POST", token, body: payload });
+}
+
+export function updateTask(token: string, taskId: number, payload: Record<string, unknown>) {
+  return request<TaskDetail>(`/api/v1/tasks/${taskId}`, { method: "PATCH", token, body: payload });
+}
+
+export function deleteTask(token: string, taskId: number) {
+  return request<void>(`/api/v1/tasks/${taskId}`, { method: "DELETE", token });
+}
+
+export function pushTask(token: string, taskId: number, target: "jira" | "trello") {
+  return request<TaskDetail>(`/api/v1/tasks/${taskId}/push`, { method: "POST", token, body: { target } });
 }

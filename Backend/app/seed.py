@@ -9,6 +9,7 @@ from app.models.user import Role, ShiftId, User
 from app.services import rotation_service
 from app.services.schedule_service import to_monday
 
+
 DEMO_PASSWORD = "Demo1234!"
 
 # (nombre, email, rol, turno base, activo, posición de rotación)
@@ -54,7 +55,7 @@ def main() -> None:
         db.commit()
 
         print("\nRotación de la semana actual (empleados):")
-        monday = to_monday(dates.today())
+        monday = to_monday(date.today())
         for employee in rotation_service.get_rotating_employees(db):
             effective = rotation_service.get_effective_shift(db, employee, monday)
             print(f"  {employee.name:<22} {effective.shift_id.value:<9} ({effective.source.value})")

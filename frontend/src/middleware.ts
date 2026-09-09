@@ -2,6 +2,7 @@ import { defineMiddleware } from "astro:middleware";
 
 import { SESSION_COOKIE } from "./lib/session";
 import { ApiError, fetchMe } from "./services/api";
+import { DEFAULT_THEME, THEME_COOKIE } from "./lib/theme";
 
 /**
  * Protege en SERVIDOR las rutas privadas y mantiene la sesión en `locals`.
@@ -12,11 +13,12 @@ import { ApiError, fetchMe } from "./services/api";
 export const onRequest = defineMiddleware(async ({ url, cookies, locals, redirect }, next) => {
   locals.user = null;
   locals.token = null;
+  locals.theme = cookies.get(THEME_COOKIE)?.value === "light" ? "light" : DEFAULT_THEME;
 
   const path = url.pathname;
   const isLoginPage = path === "/login";
   const isProtectedPage = path.startsWith("/dashboard");
- const isProtectedApi = path.startsWith("/api/novedades") || path.startsWith("/api/usuarios") || path.startsWith("/api/perfil");
+ const isProtectedApi = path.startsWith("/api/novedades") || path.startsWith("/api/usuarios") || path.startsWith("/api/perfil") || path.startsWith("/api/day-overrides") || path.startsWith("/api/tareas");
 
   if (!isLoginPage && !isProtectedPage && !isProtectedApi) {
     return next();

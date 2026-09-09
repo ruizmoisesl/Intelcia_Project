@@ -41,7 +41,7 @@ def get_effective_change(db: Session, user_id: int, week_start: date) -> Schedul
             ScheduleChange.week_start == week_start,
             ScheduleChange.status == ChangeStatus.APPROVED,
         )
-        .order_by(ScheduleChange.reviewed_at.desc().nulls_last(), ScheduleChange.id.desc())
+        .order_by(ScheduleChange.reviewed_at.desc(), ScheduleChange.id.desc())
     )
     return db.scalars(stmt).first()
 

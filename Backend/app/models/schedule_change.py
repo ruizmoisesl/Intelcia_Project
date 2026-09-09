@@ -9,6 +9,7 @@ aprueba otro para la misma semana, el anterior pasa a SUPERSEDED.
 """
 import enum
 from datetime import date, datetime
+from app.core.database import Base, UTCDateTime, utcnow
 
 from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, Index, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -46,12 +47,14 @@ class ScheduleChange(Base):
     reviewed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+    created_at:  Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utcnow, server_default=func.now()
     )
-    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    reviewed_at:  Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utcnow, server_default=func.now()
+    )
+    updated_at:  Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utcnow, server_default=func.now()
     )
 
     user: Mapped[User] = relationship(foreign_keys=[user_id], lazy="selectin")

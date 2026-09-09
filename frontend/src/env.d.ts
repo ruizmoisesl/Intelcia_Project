@@ -1,5 +1,6 @@
 // <reference types="astro/client" />
 import type { ApiUser} from "./services/api";
+import type { Theme } from "./lib/theme";
 
 declare global {
     namespace App {
@@ -8,6 +9,9 @@ declare global {
             user: ApiUser | nul;
             /** token JWT */
             token: string | null;
+
+            /** Tema activo ("dark" | "light"), leído de la cookie en SSR. */
+            theme: Theme;
         }
     }
 

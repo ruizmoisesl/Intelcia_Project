@@ -33,4 +33,33 @@ jobs:
           node-version: "22"
       - run: npm ci
       - run: npm run check
-      - run: npm run build
+      - run: npm run build  
+  mysql:
+    name: MySQL compatibility
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: portal_test
+          MYSQL_USER: portal
+          MYSQL_PASSWORD: portal
+        ports:
+          - "3306:3306"
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      SECRET_KEY: ci-secret-key-0123456789abcdef
+      TEST_DATABASE_URL: mysql+pymysql://portal:portal@127.0.0.1:3306/portal_test?charset=utf8mb4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/test_mysql_compatibility.py -v

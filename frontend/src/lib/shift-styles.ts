@@ -60,3 +60,12 @@ const FALLBACK: ShiftStyle = {
 export function shiftStyle(color: string | null | undefined): ShiftStyle {
   return color && color in STYLES ? STYLES[color as ShiftColor] : FALLBACK;
 }
+
+/** Estilo de los días con horario personalizado por horas (indigo). */
+export const CUSTOM_DAY_STYLE: ShiftStyle = {
+  badge: "bg-indigo-100 text-indigo-800 ring-1 ring-inset ring-indigo-600/30",
+  card: "border-indigo-300 bg-indigo-50",
+  time: "text-indigo-900",
+  chip: "bg-indigo-500",
+  dot: "bg-indigo-500",
+};

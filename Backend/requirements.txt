@@ -9,5 +9,12 @@ bcrypt
 httpx
 tzdata
 
+# MySQL
+PyMySQL
+# Requerido por PyMySQL para el plugin de autenticación por defecto de MySQL 8
+# (caching_sha2_password). Sin esto: "cryptography is required for sha256_password
+# or caching_sha2_password".
+cryptography
+
 # Pruebas
 pytest

@@ -216,3 +216,17 @@ def _subtract_hours(value: time, hours: int) -> time:
     if total_minutes < 0:
         raise ValueError(f"No se pueden restar {hours} h a {value.isoformat()}")
     return time(total_minutes // 60, total_minutes % 60)
+
+@dataclass(frozen=True)
+class DayEntry:
+    date: date
+    weekday: Weekday
+    day_name: str
+    start: time | None
+    end: time | None
+    is_holiday: bool = False
+    holiday_name: str | None = None
+    #: True si un horario personalizado (day_override) modificó este día.
+    is_custom: bool = False
+    #: Turno aplicado por el override (modo «turno de un día»), para colorear.
+    custom_shift_id: ShiftId | None = None

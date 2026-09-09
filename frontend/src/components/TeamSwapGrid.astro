@@ -1,0 +1,130 @@
+---
+import { addDaysIso, formatRange } from "../lib/format";
+import { CUSTOM_DAY_STYLE, shiftStyle } from "../lib/shift-styles";
+import type { TeamWeek } from "../services/api";
+import ShiftBadge from "./ShiftBadge.astro";
+
+interface Props {
+  team: TeamWeek;
+  currentUserId: number;
+}
+
+const { team, currentUserId } = Astro.props;
+
+const own = team.members.find((member) => member.user.id === currentUserId) ?? null;
+const range = formatRange(team.week_start, addDaysIso(team.week_start, 6));
+
+const DAY_SHORT: Record<string, string> = {
+  MONDAY: "L", TUESDAY: "M", WEDNESDAY: "X", THURSDAY: "J",
+  FRIDAY: "V", SATURDAY: "S", SUNDAY: "D",
+};
+
+const dayStyle = (day: (typeof team.members)[number]["days"][number], memberShiftColor: string) => {
+  if (day.is_custom) {
+    return day.custom_shift ? shiftStyle(day.custom_shift.color) : CUSTOM_DAY_STYLE;
+  }
+  if (!day.start) return null;
+  return shiftStyle(day.is_holiday ? "purple" : memberShiftColor);
+};
+---
+
+<section class="bg-white/5 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden hover:border-rose-500/20 transition-all duration-300">
+  <div class="border-b border-white/5 px-5 py-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="text-sm font-semibold text-white">
+          Horarios del equipo · semana del {range}
+        </h2>
+        <p class="mt-1 text-xs text-gray-400 flex items-center gap-1.5">
+          <span>Consulta quién tiene cada turno esta semana para acordar un intercambio.</span>
+          <span class="inline-flex items-center gap-1 text-rose-400">
+            <span>↔</span>
+            <span class="text-[10px] text-gray-500">= turno distinto al tuyo</span>
+          </span>
+        </p>
+      </div>
+      <span class="flex-shrink-0 px-2.5 py-1 text-[10px] font-medium bg-rose-500/10 text-rose-400 rounded-full border border-rose-500/20">
+        {team.members.length} empleados
+      </span>
+    </div>
+  </div>
+
+  <ul class="divide-y divide-white/5">
+    {team.members.map((member) => {
+      const isOwn = member.user.id === currentUserId;
+      const swappable = own !== null && !isOwn && member.shift.id !== own.shift.id;
+      return (
+        <li class:list={[
+          "flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors duration-200",
+          isOwn ? "bg-rose-500/5" : "hover:bg-white/5"
+        ]}>
+          <div class="flex items-center gap-2.5 min-w-[11rem]">
+            <div class:list={[
+              "flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-lg",
+              isOwn 
+                ? "bg-gradient-to-r from-rose-500 to-rose-600 shadow-rose-500/20" 
+                : "bg-gray-600/30 text-gray-400"
+            ]}>
+              {member.user.name.charAt(0).toUpperCase()}
+            </div>
+            <span class:list={[
+              "truncate text-sm",
+              isOwn ? "font-semibold text-white" : "text-gray-300"
+            ]}>
+              {member.user.name}
+              {isOwn && <span class="ml-1 text-[10px] font-normal text-rose-400">(tú)</span>}
+            </span>
+          </div>
+
+          <ShiftBadge shift={member.shift} size="sm" />
+
+          {swappable && (
+            <span class="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-medium text-rose-400 border border-rose-500/20">
+              <span>↔</span> posible intercambio
+            </span>
+          )}
+
+          <div class="ml-auto flex flex-wrap gap-1.5">
+            {member.days.map((day) => {
+              const style = dayStyle(day, member.shift.color);
+              const isToday = day.date === team.today;
+              return (
+                <span
+                  class:list={[
+                    "inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium tabular-nums transition-all duration-200",
+                    style ? style.badge : "bg-white/5 text-gray-500",
+                    isToday && "ring-1 ring-rose-500/30",
+                  ]}
+                  title={[
+                    day.is_custom ? "Horario personalizado" : null,
+                    day.is_holiday ? day.holiday_name ?? "Festivo" : null,
+                  ].filter(Boolean).join(" · ") || undefined}
+                >
+                  <span class="font-bold text-[9px] uppercase opacity-60">{DAY_SHORT[day.weekday]}</span>
+                  {day.start ? (
+                    <span>{day.start}–{day.end}</span>
+                  ) : (
+                    <span class="text-gray-600">—</span>
+                  )}
+                  {isToday && (
+                    <span class="inline-block w-1 h-1 rounded-full bg-rose-400 animate-pulse"></span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        </li>
+      );
+    })}
+  </ul>
+
+  <div class="border-t border-white/5 px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+    <span class="text-[10px] text-gray-500 flex items-center gap-1.5">
+      <span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+      Datos actualizados
+    </span>
+    <span class="text-[10px] text-gray-500">
+      Día actual: <span class="text-gray-400">{team.today}</span>
+    </span>
+  </div>
+</section>

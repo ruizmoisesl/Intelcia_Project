@@ -1,7 +1,9 @@
 """Contratos de API del módulo de horarios."""
-from datetime import date, time
+from datetime import date, time, datetime
 
 from pydantic import BaseModel
+
+from app.models.day_override import DayOverride
 
 from app.models.user import ShiftId
 from app.schemas.user import UserBrief
@@ -46,6 +48,8 @@ class DayScheduleOut(BaseModel):
     end: str | None
     is_holiday: bool = False
     holiday_name: str | None = None
+    is_custom: bool = False
+    custom_shift: ShiftInfo | None = None
 
 
 class TodayScheduleOut(BaseModel):
@@ -56,6 +60,8 @@ class TodayScheduleOut(BaseModel):
     end: str | None
     is_holiday: bool = False
     holiday_name: str | None = None
+    is_custom: bool = False
+    custom_shift: ShiftInfo | None = None
     shift: ShiftInfo
     source: ShiftSource
 
@@ -83,6 +89,7 @@ class TeamMemberOut(BaseModel):
     source: ShiftSource
     override_change_id: int | None = None
     days: list[DayScheduleOut]
+    day_overrides: list[DayOverrideOut] = []
 
 
 class TeamWeekOut(BaseModel):
@@ -99,7 +106,36 @@ def day_out(entry: DayEntry) -> DayScheduleOut:
         end=hhmm(entry.end),
         is_holiday=entry.is_holiday,
         holiday_name=entry.holiday_name,
+        is_custom=entry.is_custom,
+        custom_shift=shift_info(entry.custom_shift_id) if entry.custom_shift_id else None,
     )
+
+class DayOverrideOut(BaseModel):
+    """Horario personalizado de un día (gestión supervisor/admin)."""
+    id: int
+    user: UserBrief
+    date: date
+    shift: ShiftInfo | None = None
+    start: str | None = None
+    end: str | None = None
+    reason: str | None
+    created_by: UserBrief
+    created_at: datetime
+
+def day_override_out(override: DayOverride) -> DayOverrideOut:
+    definition = get_shift_definition(override.shift) if override.shift else None
+    return DayOverrideOut(
+        id=override.id,
+        user=UserBrief.model_validate(override.user),
+        date=override.date,
+        shift=ShiftInfo(id=definition.id, name=definition.name, color=definition.color) if definition else None,
+        start=hhmm(override.start_time),
+        end=hhmm(override.end_time),
+        reason=override.reason,
+        created_by=UserBrief.model_validate(override.created_by),
+        created_at=override.created_at,
+    )
+
 
 class HolidayOut(BaseModel):
     date: date
