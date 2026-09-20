@@ -16,6 +16,7 @@ const activeItems: NavItem[] = [
   { href: "/dashboard/horarios", label: "Horarios", icon: "calendar" },
   { href: "/dashboard/novedades", label: "Novedades", icon: "bell" },
   { href: "/dashboard/tareas", label: "Tareas", icon: "clipboard" },
+  { href: "/dashboard/tickets", label: "Tickets", icon: "ticket" },
 ];
 
 // Personal: solo supervisores y administradores.
@@ -29,7 +30,6 @@ if (role === "ADMIN") {
 }
 
 const upcomingItems: { label: string; icon: IconName }[] = [
-  { label: "Tickets", icon: "ticket" },
   { label: "Documentos", icon: "folder" },
   { label: "Reportes", icon: "chart" },
   { label: "Configuración", icon: "settings" },

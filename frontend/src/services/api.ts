@@ -130,7 +130,7 @@ export class ApiError extends Error {
   }
 }
 
-export const API_URL = import.meta.env.API_URL ?? "http://localhost:8000";
+export const API_URL = import.meta.env.API_URL ?? "https://apitest.infoclass.site"; // URL del backend (variable de entorno de servidor)
 
 interface RequestOptions {
   method?: string;
@@ -477,3 +477,120 @@ export function deleteTask(token: string, taskId: number) {
 export function pushTask(token: string, taskId: number, target: "jira" | "trello") {
   return request<TaskDetail>(`/api/v1/tasks/${taskId}/push`, { method: "POST", token, body: { target } });
 }
+
+// ---------- Tickets del mesón (Jira, lectura) ----------
+
+export type TicketStatusCategory = "TODO" | "IN_PROGRESS" | "DONE";
+
+export interface Ticket {
+  key: string;
+  url: string;
+  summary: string;
+  status_name: string;
+  status_category: TicketStatusCategory;
+  priority: string;
+  assignee_name: string | null;
+  assignee_account_id: string | null;
+  created: string;
+  updated: string;
+  is_mine: boolean;
+}
+
+export interface TicketList {
+  provider: "jira" | "unconfigured" | "unavailable" | string;
+  linked: boolean;
+  scope_label: string | null;   // ← nuevo
+  total: number;
+  has_more: boolean;
+  account_id: string | null;
+  items: Ticket[];
+}
+
+export interface TicketComment {
+  author: string | null;
+  created: string;
+  body: string;
+}
+
+export interface TicketAttachment {
+  filename: string;
+  size_kb: number;
+  mime: string | null;
+}
+
+export interface TicketDetail {
+  key: string;
+  url: string;
+  summary: string;
+  status_name: string;
+  status_category: TicketStatusCategory;
+  priority: string;
+  assignee_name: string | null;
+  reporter_name: string | null;
+  created: string;
+  updated: string;
+  resolved: string | null;
+  description: string | null;
+  comments_count: number;
+  comments: TicketComment[];
+  attachments: TicketAttachment[];
+  is_mine: boolean;
+}
+
+export interface TicketStats {
+  provider: string;
+  open_count: number | null;
+  sla_risk: number | null;
+  sla_configured: boolean;
+  mttr_hours: number | null;
+  satisfaction_pct: number | null;
+  rated_count: number;
+  resolved_count: number | null;
+  window_days: number;
+}
+
+export function fetchMyTickets(token: string, scope = "open") {
+  return request<TicketList>(`/api/v1/tickets/mine?scope=${scope}`, { token });
+}
+
+export function fetchGlobalTickets(token: string, scope = "open") {
+  return request<TicketList>(`/api/v1/tickets/global?scope=${scope}`, { token });
+}
+
+export function fetchTicket(token: string, key: string) {
+  return request<TicketDetail>(`/api/v1/tickets/${key}`, { token });
+}
+
+export function fetchTicketStats(token: string) {
+  return request<TicketStats>("/api/v1/tickets/stats", { token });
+}
+
+export function linkJiraAccount(token: string, payload: { email?: string; user_id?: number } = {}) {
+  return request<{ linked: boolean; account_id: string | null; display_name: string | null }>(
+    "/api/v1/tickets/link", { method: "POST", token, body: payload },
+  );
+}
+
+export function unlinkJiraAccount(token: string) {
+  return request<void>("/api/v1/tickets/link", { method: "DELETE", token });
+}
+
+
+export interface TicketComment { author: string | null; created: string; body: string; }
+export interface TicketAttachment { filename: string; size_kb: number; mime: string | null; }
+
+export interface TicketDetail {
+  key: string; url: string; summary: string;
+  status_name: string; status_category: TicketStatusCategory; priority: string;
+  assignee_name: string | null; reporter_name: string | null;
+  created: string; updated: string; resolved: string | null;
+  description: string | null; comments_count: number;
+  comments: TicketComment[]; attachments: TicketAttachment[]; is_mine: boolean;
+}
+
+export interface TicketStats {
+  provider: string; open_count: number | null; sla_risk: number | null;
+  sla_configured: boolean; mttr_hours: number | null; satisfaction_pct: number | null;
+  rated_count: number; resolved_count: number | null; window_days: number;
+}
+

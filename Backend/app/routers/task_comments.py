@@ -8,7 +8,7 @@ from app.dependencies.auth import get_current_user
 from app.models.task import Task, TaskAttachment, TaskComment, TaskEvent
 from app.models.user import Role, User
 from app.schemas.task import TaskCommentOut, comment_out
-from app.services import audit_service, storage
+from app.services import audit_service, notification_service, storage
 
 router = APIRouter(tags=["Tareas · comentarios"])
 
@@ -67,6 +67,7 @@ def create_comment(
     ))
     db.commit()
     db.refresh(comment)
+    notification_service.notify_task_commented(db, task, comment)
     return comment_out(comment)
 
 

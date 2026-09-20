@@ -34,6 +34,13 @@ services:
       GOOGLE_CALENDAR_API_KEY: ${GOOGLE_CALENDAR_API_KEY:-}
       HOLIDAYS_PROVIDER: ${HOLIDAYS_PROVIDER:-auto}
       DEBUG: "true"
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:4321}
+      WEEKLY_REMINDER_ENABLED: ${WEEKLY_REMINDER_ENABLED:-true}
     volumes:
       - portal_uploads:/app/uploads
     depends_on:

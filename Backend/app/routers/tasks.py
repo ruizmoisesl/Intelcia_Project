@@ -14,7 +14,7 @@ from app.schemas.task import (
     comment_out,
 )
 from app.schemas.user import UserBrief
-from app.services import audit_service, task_service, task_sync_service
+from app.services import audit_service, notification_service, task_service, task_sync_service
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["Tareas"])
 
@@ -68,6 +68,7 @@ def create_task(
     except task_service.TaskError as exc:
         raise HTTPException(exc.status_code, exc.message)
     audit_service.log(db, "TASK_CREATED", actor=supervisor, target=task.assignee, detail=task.title)
+    notification_service.notify_task_created(db, task, actor=supervisor)
     return _detail_out(task, dates.today())
 
 
@@ -107,11 +108,13 @@ def update_task(
 ):
     try:
         task = task_service.get_task_for(db, current_user, task_id)
-        task = task_service.update_task(db, task, requester=current_user,
-                                        changes=payload.model_dump(exclude_unset=True))
+        task, summary = task_service.update_task(
+            db, task, requester=current_user, changes=payload.model_dump(exclude_unset=True)
+        )
     except task_service.TaskError as exc:
         raise HTTPException(exc.status_code, exc.message)
     audit_service.log(db, "TASK_UPDATED", actor=current_user, target=task.assignee, detail=task.title)
+    notification_service.notify_task_updated(db, task, summary, actor=current_user)
     return _detail_out(task, dates.today())
 
 

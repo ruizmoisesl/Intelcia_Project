@@ -12,8 +12,10 @@ export default defineConfig({
   server: { 
     port: 4321,
     allowedHosts: [
+      'nexuscentraltest.infoclass.site',
       'nexuscentral.infoclass.site',
       'nexusapi.infoclass.site',
+      'apitest.infoclass.site',
       'localhost'
     ]
   },
@@ -21,8 +23,10 @@ export default defineConfig({
     plugins: [tailwindcss()],
     server: {
       allowedHosts: [
+        'nexuscentraltest.infoclass.site',
         'nexuscentral.infoclass.site',
         'nexusapi.infoclass.site',
+        'apitest.infoclass.site',
         'localhost'
       ]
     }

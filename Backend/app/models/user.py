@@ -53,6 +53,8 @@ class User(Base):
         UTCDateTime, nullable=False, default=utcnow, onupdate=utcnow,
         server_default=func.now(),
     )
+        #: Cuenta de Jira del usuario (vinculación para «Mis tickets» del mesón).
+    jira_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     def __repr__(self) -> str:
         return f"<User id={self.id} email={self.email!r} role={self.role.value}>"

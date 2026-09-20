@@ -18,7 +18,7 @@ export const onRequest = defineMiddleware(async ({ url, cookies, locals, redirec
   const path = url.pathname;
   const isLoginPage = path === "/login";
   const isProtectedPage = path.startsWith("/dashboard");
- const isProtectedApi = path.startsWith("/api/novedades") || path.startsWith("/api/usuarios") || path.startsWith("/api/perfil") || path.startsWith("/api/day-overrides") || path.startsWith("/api/tareas") || path.startsWith("/archivos");
+ const isProtectedApi = path.startsWith("/api/novedades") || path.startsWith("/api/usuarios") || path.startsWith("/api/perfil") || path.startsWith("/api/day-overrides") || path.startsWith("/api/tareas") || path.startsWith("/archivos") || path.startsWith("/api/tickets");
 
   const token = cookies.get(SESSION_COOKIE)?.value ?? null;
 

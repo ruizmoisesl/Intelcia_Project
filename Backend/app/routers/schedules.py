@@ -40,7 +40,7 @@ from app.schemas.schedule import (
     shift_info,
 )
 from app.schemas.user import UserBrief
-from app.services import rotation_service, schedule_service
+from app.services import rotation_service, schedule_service, weekly_reminder_service
 
 router = APIRouter(prefix="/api/v1/schedules", tags=["Horarios"])
 
@@ -73,6 +73,7 @@ def list_shifts(current_user: User = Depends(get_current_user)) -> list[ShiftOut
 def my_schedule_for_today(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> TodayScheduleOut:
+    weekly_reminder_service.maybe_send(db)
     today = dates.today()
     effective = rotation_service.get_effective_shift(db, current_user, today)
     day = day_override_service.resolve_day(db, current_user.id, today, effective.shift_id)
@@ -101,6 +102,7 @@ def my_week_schedule(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> WeekScheduleOut:
+    weekly_reminder_service.maybe_send(db)
     monday = schedule_service.to_monday(week_start or dates.today())
     effective = rotation_service.get_effective_shift(db, current_user, monday)
     week = schedule_service.get_week_schedule(effective.shift_id, monday)

@@ -12,7 +12,7 @@ from app.models.user import Role, User
 from app.schemas.change import ChangeCreateRequest, ChangeOut, ReviewRequest
 from app.schemas.schedule import shift_info
 from app.schemas.user import UserBrief
-from app.services import audit_service, auth_service, rotation_service, schedule_change_service
+from app.services import audit_service, auth_service, notification_service, rotation_service, schedule_change_service
 from app.services.schedule_service import to_monday
 
 router = APIRouter(prefix="/api/v1/changes", tags=["Novedades de horario"])
@@ -69,6 +69,10 @@ def create_change(
         db, "CHANGE_CREATED", actor=current_user, target=target,
         detail=f"semana {change.week_start} → {change.requested_shift.value} ({change.status.value})",
     )
+    if change.status == ChangeStatus.PENDING:
+        notification_service.notify_change_created(db, change)
+    else:
+        notification_service.notify_change_assigned(db, change, actor=current_user)
 
     return _change_to_out(db, change)
 
@@ -123,6 +127,7 @@ def approve_change(
         db, "CHANGE_APPROVED", actor=supervisor, target=change.user,
         detail=f"semana {change.week_start} → {change.requested_shift.value}",
     )
+    notification_service.notify_change_reviewed(db, change)
 
     return _change_to_out(db, change)
 
@@ -148,6 +153,7 @@ def reject_change(
         db, "CHANGE_REJECTED", actor=supervisor, target=change.user,
         detail=f"semana {change.week_start} → {change.requested_shift.value}",
     )
+    notification_service.notify_change_reviewed(db, change)
     
     return _change_to_out(db, change)
 

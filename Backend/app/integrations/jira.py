@@ -70,3 +70,106 @@ def create_issue(task) -> tuple[str, str]:
     if not key:
         raise JiraError("Jira no devolvió la clave del issue")
     return key, f"{settings.JIRA_BASE_URL}/browse/{key}"
+
+def has_credentials() -> bool:
+    """Credenciales base (sin proyecto): válido para búsqueda de usuarios."""
+    return all([settings.JIRA_BASE_URL, settings.JIRA_EMAIL, settings.JIRA_API_TOKEN])
+
+
+def _http_get(url: str, *, params: dict, auth: tuple, headers: dict) -> httpx.Response:
+    """Indirección de HTTP (permite simular Jira en pruebas)."""
+    return httpx.get(url, params=params, auth=auth, headers=headers, timeout=15.0)
+
+
+def search_issues(jql: str, *, max_results: int = 100, fields: list[str] | None = None) -> dict:
+    """POST /rest/api/3/search/jql (el clásico /search está deprecado).
+
+    Devuelve {"issues": [...], "isLast": bool, "nextPageToken": ...}.
+    Lanza JiraError si no hay credenciales o la consulta falla.
+    """
+    if not has_credentials():
+        raise JiraError("Jira no está configurado (JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN)")
+    payload = {
+        "jql": jql,
+        "maxResults": max_results,
+        "fields": fields or ["summary", "status", "priority", "assignee", "created", "updated"],
+    }
+    try:
+        response = _http_post(
+            f"{settings.JIRA_BASE_URL}/rest/api/3/search/jql",
+            json=payload,
+            auth=(settings.JIRA_EMAIL, settings.JIRA_API_TOKEN),
+            headers={"Accept": "application/json"},
+        )
+    except httpx.HTTPError as exc:
+        raise JiraError(f"Error de red contra Jira: {exc}") from exc
+    if response.status_code != 200:
+        raise JiraError(f"Jira respondió {response.status_code}")
+    data = response.json()
+    if "issues" not in data:
+        raise JiraError("Respuesta de Jira sin issues")
+    return data
+
+
+def find_user_by_email(email: str) -> list[dict]:
+    """GET /rest/api/3/user/search?query=<email> → candidatos con accountId.
+
+    Nota de privacidad: emailAddress puede venir oculto; por eso el servicio
+    exige match exacto de email o candidato único.
+    """
+    if not has_credentials():
+        raise JiraError("Jira no está configurado (JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN)")
+    try:
+        response = _http_get(
+            f"{settings.JIRA_BASE_URL}/rest/api/3/user/search",
+            params={"query": email},
+            auth=(settings.JIRA_EMAIL, settings.JIRA_API_TOKEN),
+            headers={"Accept": "application/json"},
+        )
+    except httpx.HTTPError as exc:
+        raise JiraError(f"Error de red contra Jira: {exc}") from exc
+    if response.status_code != 200:
+        raise JiraError(f"Jira respondió {response.status_code} buscando el usuario")
+    return list(response.json())
+
+class JiraNotFoundError(JiraError):
+    """El issue/ticket consultado no existe."""
+
+
+def get_issue(issue_key: str, *, fields: list[str]) -> dict:
+    """GET /rest/api/3/issue/{key} — detalle (descripción ADF, comentarios,
+    adjuntos si se piden en ``fields``)."""
+    if not has_credentials():
+        raise JiraError("Jira no está configurado (JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN)")
+    try:
+        response = _http_get(
+            f"{settings.JIRA_BASE_URL}/rest/api/3/issue/{issue_key}",
+            params={"fields": ",".join(fields)},
+            auth=(settings.JIRA_EMAIL, settings.JIRA_API_TOKEN),
+            headers={"Accept": "application/json"},
+        )
+    except httpx.HTTPError as exc:
+        raise JiraError(f"Error de red contra Jira: {exc}") from exc
+    if response.status_code == 404:
+        raise JiraNotFoundError(f"El ticket {issue_key} no existe en Jira")
+    if response.status_code != 200:
+        raise JiraError(f"Jira respondió {response.status_code} al pedir {issue_key}")
+    return response.json()
+
+
+def find_groups(query: str = "") -> list[dict]:
+    """GET /rest/api/3/groups/picker — descubrir el nombre exacto del grupo."""
+    if not has_credentials():
+        raise JiraError("Jira no está configurado (JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN)")
+    try:
+        response = _http_get(
+            f"{settings.JIRA_BASE_URL}/rest/api/3/groups/picker",
+            params={"query": query},
+            auth=(settings.JIRA_EMAIL, settings.JIRA_API_TOKEN),
+            headers={"Accept": "application/json"},
+        )
+    except httpx.HTTPError as exc:
+        raise JiraError(f"Error de red contra Jira: {exc}") from exc
+    if response.status_code != 200:
+        raise JiraError(f"Jira respondió {response.status_code} al buscar grupos")
+    return list(response.json().get("groups", []))

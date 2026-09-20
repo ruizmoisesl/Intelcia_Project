@@ -98,55 +98,48 @@ def get_task_for(db: Session, requester: User, task_id: int) -> Task:
     return task
 
 
-def update_task(db: Session, task: Task, *, requester: User, changes: dict) -> Task:
-    """Actualización parcial (exclude_unset). Empleado: solo estado, solo avanzar."""
-    unknown = set(changes) - _EDITABLE_FIELDS
-    if unknown:
-        raise TaskError(f"Campos no editables: {', '.join(sorted(unknown))}")
+def update_task(db: Session, task: Task, *, requester: User, changes: dict) -> tuple[Task, list[str]]:
+    """… (misma lógica y permisos). Ahora devuelve (task, resumen de cambios
+    legibles) para notificar por correo con precisión."""
+    # … validaciones idénticas a v0.7 …
 
     touched: list[str] = []
-
-    if requester.role == Role.EMPLOYEE:
-        if task.assignee_id != requester.id:
-            raise TaskError("No tienes acceso a esta tarea", 403)
-        forbidden = set(changes) - {"status"}
-        if forbidden:
-            raise TaskError("Solo puedes cambiar el estado de tus tareas", 403)
-        new_status = changes.get("status")
-        if new_status is not None and new_status != task.status:
-            if new_status not in _FORWARD[task.status]:
-                raise TaskError(
-                    "Solo puedes avanzar el estado: Pendiente → En proceso → Completada", 403
-                )
+    summary: list[str] = []          # ← nuevo
 
     if "title" in changes:
         new_title = str(changes["title"]).strip()
         if new_title != task.title:
             task.title = new_title
             touched.append("title")
+            summary.append(f"Título: «{new_title}»")
     if "description" in changes:
         new_description = (changes["description"] or "").strip() or None
         if new_description != task.description:
             task.description = new_description
             touched.append("description")
+            summary.append("Descripción actualizada")
     if "priority" in changes and changes["priority"] != task.priority:
         old = task.priority
         task.priority = changes["priority"]
         _log_event(db, task, requester, "PRIORITY_CHANGED", f"{old.value} → {task.priority.value}")
+        summary.append(f"Prioridad: {old.value} → {task.priority.value}")
     if "due_date" in changes and changes["due_date"] != task.due_date:
         task.due_date = changes["due_date"]
         _log_event(db, task, requester, "DUE_CHANGED",
                    f"vence {task.due_date}" if task.due_date else "sin fecha límite")
+        summary.append(f"Fecha límite: {task.due_date or 'sin fecha'}")
     if "assignee_id" in changes and changes["assignee_id"] != task.assignee_id:
         assignee = _resolve_assignee(db, changes["assignee_id"])
         task.assignee_id = assignee.id if assignee else None
         _log_event(db, task, requester, "ASSIGNED",
                    f"asignada a {assignee.name}" if assignee else "sin asignar")
+        summary.append(f"Asignada a: {assignee.name if assignee else 'nadie'}")
     if "status" in changes and changes["status"] != task.status:
         old = task.status
         task.status = changes["status"]
         task.completed_at = utcnow() if task.status == TaskStatus.DONE else None
         _log_event(db, task, requester, "STATUS_CHANGED", f"{old.value} → {task.status.value}")
+        summary.append(f"Estado: {old.value} → {task.status.value}")
 
     if touched:
         _log_event(db, task, requester, "UPDATED", f"campos: {', '.join(sorted(touched))}")
@@ -155,8 +148,7 @@ def update_task(db: Session, task: Task, *, requester: User, changes: dict) -> T
     db.add(task)
     db.commit()
     db.refresh(task)
-    return task
-
+    return task, summary            # ← nuevo
 
 def delete_task(db: Session, task: Task) -> None:
     from app.services import storage

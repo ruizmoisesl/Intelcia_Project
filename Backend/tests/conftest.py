@@ -10,6 +10,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings as _settings
+from app.services import notification_service as _notification_service
+from app.services import weekly_reminder_service as _weekly_reminder_service
+
 from app.core.database import Base, get_db
 from app.core.security import hash_password
 from app.main import app
@@ -38,6 +42,18 @@ def db():
     finally:
         session.close()
 
+@pytest.fixture(autouse=True)
+def _notifications_off(monkeypatch):
+    """Notificaciones desactivadas por defecto: los tests de negocio no
+    dependen del correo ni del día de la semana. Los tests específicos las
+    activan con `notifications_on`."""
+    monkeypatch.setattr(_settings, "NOTIFICATIONS_ENABLED", False)
+    monkeypatch.setattr(_settings, "WEEKLY_REMINDER_ENABLED", False)
+    _notification_service.reset_for_tests()
+    _weekly_reminder_service.reset_for_tests()
+    yield
+    _notification_service.reset_for_tests()
+    _weekly_reminder_service.reset_for_tests()
 
 @pytest.fixture()
 def users(db):

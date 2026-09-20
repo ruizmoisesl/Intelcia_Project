@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import audit, auth, changes, day_overrides, schedules, users,tasks, task_comments
+from app.routers import audit, auth, changes, day_overrides, schedules, users,tasks, task_comments, tickets
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(schedules.router)
     app.include_router(changes.router)
     app.include_router(audit.router)
+    app.include_router(tickets.router)
 
     @app.get("/api/v1/health", tags=["Sistema"])
     def health() -> dict[str, str]:

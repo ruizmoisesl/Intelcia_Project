@@ -7,7 +7,7 @@ from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.schemas.auth import ChangePasswordRequest, LoginRequest, TokenResponse
 from app.schemas.user import UserPublic
-from app.services import audit_service, auth_service
+from app.services import audit_service, auth_service, weekly_reminder_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticación"])
 
@@ -36,6 +36,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
 
     rate_limit.reset(email)
     audit_service.log(db, "LOGIN_SUCCESS", actor=user)
+    weekly_reminder_service.maybe_send(db)
 
     token = security.create_access_token(user_id=user.id, role=user.role.value)
     return TokenResponse(access_token=token, user=UserPublic.model_validate(user))
